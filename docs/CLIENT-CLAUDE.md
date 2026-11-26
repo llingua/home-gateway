@@ -59,6 +59,12 @@ Come funziona: `mcp.belinchebon.com` è un'app Access con *Managed OAuth* (Acces
 
 ## 3. Cosa chiedere
 
+**Cercare e aggiungere ai download** (dall'app Claude):
+- "Cerca *Dune* e dimmi se ce l'ho già." → `search_media`: titolo, anno, trama breve e stato (non richiesto, in attesa, in download, disponibile).
+- "Aggiungilo." → Claude ti ripete titolo e anno e chiede conferma; solo dopo il tuo sì crea la richiesta Overseerr. Per le serie puoi scegliere le stagioni. Massimo 10 richieste al giorno; se cambi idea, annulli la richiesta da Overseerr.
+
+Proxmox non si modifica da qui: né Claude né il gateway possono farlo.
+
 Con `config:read` l'agente può analizzare le configurazioni e proporre correzioni, per esempio:
 - "Controlla i profili di qualità di Radarr e Sonarr e dimmi cosa non va."
 - "Gli indexer di Prowlarr sono sincronizzati con Radarr e Sonarr? Ci sono problemi?"

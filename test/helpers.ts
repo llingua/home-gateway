@@ -91,6 +91,7 @@ export const CLIENTS = JSON.stringify({
   "Admin@Example.com": { name: "admin", scopes: ["*"] },
   "agent-id": { name: "agente", scopes: ["media:read", "config:read"] },
   "writer-id": { name: "scrittore", scopes: ["media:read", "config:read", "config:write"] },
+  "requester-id": { name: "richiedente", scopes: ["media:read", "media:request"] },
 });
 
 export const baseEnv = (extra: Partial<Env> = {}): Env => ({
