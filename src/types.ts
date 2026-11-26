@@ -3,6 +3,7 @@ export interface Env {
   // Autenticazione dei clienti (Cloudflare Access)
   ACCESS_TEAM_DOMAIN?: string; // es. llhome.cloudflareaccess.com
   ACCESS_AUD?: string; // AUD tag dell'app Access del gateway
+  ACCESS_AUD_OAUTH?: string; // AUD dell'app Access con Managed OAuth (mcp.belinchebon.com): accesso di una persona da app come Claude
   CLIENTS?: string | Record<string, Client>;
 
   // Scritture (livello 3): piani da approvare. Senza questi valori le scritture sono disattivate.

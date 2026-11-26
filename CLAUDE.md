@@ -14,7 +14,7 @@ Divisione dei compiti: **Home Assistant** fa i controlli di disponibilità dalla
 |---|---|
 | `src/index.ts` | Punto d'ingresso del Worker (collega `fetch` e Cache API a `handle`) |
 | `src/app.ts` | Router, autenticazione, controllo permessi, risposte JSON |
-| `src/auth.ts` | Verifica del JWT di Cloudflare Access (RS256, iss, aud, exp), elenco clienti (`CLIENTS`), permessi |
+| `src/auth.ts` | Verifica del JWT di Cloudflare Access (RS256, iss, aud, exp), elenco clienti (`CLIENTS`), permessi; secondo ingresso `ACCESS_AUD_OAUTH` per le persone che arrivano da `mcp.belinchebon.com` (serve l'email, ammesse solo quelle in `CLIENTS` o `APPROVERS`) |
 | `src/scrub.ts` | Rete di sicurezza per le sezioni `config_*`: toglie chiavi dai nomi sospetti (`apiKey`, `password`, `fields`, `token`...) e oscura i valori che sembrano segreti |
 | `src/services/arr-config.ts` | Impostazioni di Radarr/Sonarr per l'audit (whitelist di campi); Prowlarr e qBittorrent hanno la loro funzione `fetch*Config` nei rispettivi file |
 | `src/mcp.ts` | Interfaccia MCP (`POST /mcp`, JSON-RPC 2.0 senza sessioni): strumenti di lettura derivati dalle sezioni e, se `STATE` esiste, strumenti di scrittura con approvazione (`propose_*`, `apply_plan`, `get_plan`, `get_audit_log`), filtrati per permesso; rifiuta `Origin`, GET, richieste > 64 KB; registra solo cliente e strumento |
@@ -58,7 +58,7 @@ Dopo ogni modifica alla sicurezza (`auth.ts`, controllo permessi, `upstream.ts`,
 
 ## Stato
 
-In produzione su `gateway.belinchebon.com` (Cloudflare Workers Builds: ogni merge su `main` rilascia da solo con `npx wrangler deploy`). Dietro l'app Access `home-gateway`; clienti: `client-homepage` (homepage), `client-home-assistant` (Home Assistant, sola lettura, collegato ma ancora senza sensori attivi: vedi `docs/CLIENT-HOME-ASSISTANT.md`) e `client-agent` (agente come Claude: `media:read` + `config:read` + `config:write`, quest'ultimo solo per proporre: ogni modifica richiede l'approvazione di `APPROVERS` su `/approve`; vedi `docs/CLIENT-CLAUDE.md`). Il gateway entra nei servizi con il token `gateway-upstream` (policy "Gateway upstream" sulle loro app Access).
+In produzione su `gateway.belinchebon.com` (Cloudflare Workers Builds: ogni merge su `main` rilascia da solo con `npx wrangler deploy`). Dietro l'app Access `home-gateway`; clienti: `client-homepage` (homepage), `client-home-assistant` (Home Assistant, sola lettura, collegato ma ancora senza sensori attivi: vedi `docs/CLIENT-HOME-ASSISTANT.md`) e `client-agent` (agente come Claude: `media:read` + `config:read` + `config:write`, quest'ultimo solo per proporre: ogni modifica richiede l'approvazione di `APPROVERS` su `/approve`; vedi `docs/CLIENT-CLAUDE.md`). Dall'app Claude (telefono/web) si entra da `mcp.belinchebon.com` con OAuth gestito da Access (app `home-gateway mcp (OAuth)`, solo la tua email, DCR limitata ai callback di claude.ai): vedi `docs/CLIENT-CLAUDE.md`. Il gateway entra nei servizi con il token `gateway-upstream` (policy "Gateway upstream" sulle loro app Access).
 
 - **Build di anteprima disattivate** (`previews_enabled: false` nelle impostazioni Workers Builds): su un Worker nuovo Cloudflare userebbe `wrangler preview`, che richiede un blocco `previews` e crea URL pubblici. Se si riattivano, aggiungere `"previews": {}` a `wrangler.jsonc` e proteggere gli URL con Access.
 - I segreti dei servizi li imposta l'utente dalla dashboard (Settings → Variables and Secrets). `OVERSEER_API_KEY` (una R) è accettato come alias di `OVERSEERR_API_KEY`.

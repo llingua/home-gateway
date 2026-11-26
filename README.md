@@ -81,6 +81,7 @@ Descrizione completa in [`openapi.yaml`](openapi.yaml). Gli errori hanno la form
 |---|---|
 | `ACCESS_TEAM_DOMAIN` | Dominio del team Access (es. `llhome.cloudflareaccess.com`) |
 | `ACCESS_AUD` | AUD tag dell'app Access `home-gateway` (non segreto) |
+| `ACCESS_AUD_OAUTH` | AUD dell'app Access con Managed OAuth su `mcp.belinchebon.com` (persone da app Claude; non segreto) |
 | `CLIENTS` | Clienti ammessi, come oggetto JSON (vedi sotto) |
 | `RADARR_URL`, `SONARR_URL`, `OVERSEERR_URL`, `PLEX_URL`, `PROWLARR_URL`, `BAZARR_URL`, `PROXMOX_URL`, `QBITTORRENT_URL` | Indirizzi dei servizi (hanno un valore predefinito) |
 
