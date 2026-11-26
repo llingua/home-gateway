@@ -80,6 +80,8 @@ function overseerrNet(): FakeNet {
   n.json(JWKS_URL, { keys: [key.jwk] });
   n.json("https://overseerr.test/api/v1/status", { version: "1.33.2", commitTag: "abc", updateAvailable: false, commitsBehind: 0, restartRequired: false });
   n.json("https://overseerr.test/api/v1/settings/main", { apiKey: "overseerr-chiave-segretissima-1234567890", applicationTitle: "Casa", applicationUrl: "https://overseerr.interno.example", hideAvailable: false, partialRequestsEnabled: true, localLogin: true, mediaServerLogin: true, newPlexLogin: false, defaultPermissions: 32, region: "IT", originalLanguage: "it", trustProxy: true, csrfProtection: false });
+  // più specifica, quindi PRIMA: FakeNet usa la prima regola che corrisponde
+  n.json("https://overseerr.test/api/v1/settings/radarr/0/profiles", [{ id: 9, name: "2160p Quality (IT)" }, { id: 4, name: "HD-1080p" }]);
   n.json("https://overseerr.test/api/v1/settings/radarr", [{ id: 0, name: "Radarr", hostname: "192.168.0.171", port: 7878, apiKey: "radarr-chiave-segretissima-1234567890", useSsl: false, baseUrl: "/radarr", activeProfileId: 9, activeProfileName: "2160p Quality (IT)", activeDirectory: "/media/library/Movies", is4k: false, minimumAvailability: "released", isDefault: true, externalUrl: "https://radarr.belinchebon.com", tags: [1], syncEnabled: false, preventSearch: false }]);
   n.json("https://overseerr.test/api/v1/settings/sonarr", [{ id: 0, name: "Sonarr", hostname: "192.168.0.171", apiKey: "sonarr-chiave-segretissima-1234567890", activeProfileName: "Any", activeDirectory: "/media/library/TV", activeAnimeDirectory: "/media/library/Anime", is4k: false, isDefault: true, enableSeasonFolders: true, seriesType: "standard", animeSeriesType: "anime" }]);
   n.json("https://overseerr.test/api/v1/settings/plex", { name: "Plex", ip: "192.168.0.171", port: 32400, useSsl: false, machineId: "idmacchina-segretissimo-1234567890abcdef", libraries: [{ id: "1", name: "Movies", enabled: true, type: "movie" }, { id: "2", name: "Series", enabled: false }] });
@@ -101,6 +103,30 @@ describe("config_overseerr", () => {
     expect(d.plex).toEqual({ libraries: [{ id: "1", name: "Movies", enabled: true, type: "movie" }, { id: "2", name: "Series", enabled: false }] });
     expect(d.jobs).toEqual([{ id: "plex-recently-added-scan", name: "Plex Recently Added Scan", type: "process", interval: "minutes", cronSchedule: "0 */5 * * * *", running: false }]);
     noLeaks(text, OVERSEERR_LEAKS);
+  });
+
+  it("controlla la connessione dei server Radarr con la chiave salvata in Seerr: esito e numero di profili, mai indirizzi o chiavi", async () => {
+    const { body, text } = await read("overseerr", overseerrNet());
+    expect(body.data.connections).toEqual([{ service: "radarr", id: 0, reachable: true, profiles: 2 }]);
+    noLeaks(text, OVERSEERR_LEAKS);
+  });
+
+  it("se Seerr non riesce a parlare con Radarr (chiave persa o server giù), il controllo lo dice", async () => {
+    const n = overseerrNet();
+    override(n, "https://overseerr.test/api/v1/settings/radarr/0/profiles", () => new Response("no", { status: 500 }));
+    const { body } = await read("overseerr", n);
+    expect(body.data.connections).toEqual([{ service: "radarr", id: 0, reachable: false, profiles: null }]);
+    const odd = overseerrNet();
+    override(odd, "https://overseerr.test/api/v1/settings/radarr/0/profiles", () => json({ errore: "boh" }));
+    expect((await read("overseerr", odd)).body.data.connections).toEqual([{ service: "radarr", id: 0, reachable: false, profiles: null }]);
+  });
+
+  it("gli id dei server fuori formato non entrano mai nell'indirizzo delle richieste", async () => {
+    const n = overseerrNet();
+    override(n, "https://overseerr.test/api/v1/settings/radarr", () => json([{ id: "0/../../x" }, { id: -1 }, { id: 1.5 }, { id: 5000 }, { id: 0 }]));
+    const { body } = await read("overseerr", n);
+    expect(body.data.connections).toEqual([{ service: "radarr", id: 0, reachable: true, profiles: 2 }]);
+    expect(n.calls.filter((c) => c.url.includes("/profiles")).map((c) => c.url)).toEqual(["https://overseerr.test/api/v1/settings/radarr/0/profiles"]);
   });
 
   it("accetta anche il nome alternativo del segreto; senza chiave è unconfigured", async () => {

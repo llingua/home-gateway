@@ -12,7 +12,7 @@ import { fetchLibraries, fetchStreams } from "./services/plex";
 import { fetchIndexers, fetchProwlarrConfig } from "./services/prowlarr";
 import { fetchProxmox } from "./services/proxmox";
 import { fetchBazarrLanguages, fetchBazarrProfiles, fetchBazarrSettings, fetchBazarrVersion } from "./services/bazarr-config";
-import { fetchOverseerrArr, fetchOverseerrJobs, fetchOverseerrMain, fetchOverseerrPlex, fetchOverseerrVersion } from "./services/overseerr-config";
+import { fetchOverseerrArr, fetchOverseerrConnections, fetchOverseerrJobs, fetchOverseerrMain, fetchOverseerrPlex, fetchOverseerrVersion } from "./services/overseerr-config";
 import { fetchPlexLibraries, fetchPlexPreferences, fetchPlexServer } from "./services/plex-config";
 import { fetchProxmoxBackups, fetchProxmoxDisks, fetchProxmoxGuests, fetchProxmoxNode, fetchProxmoxStorages } from "./services/proxmox-config";
 import {
@@ -245,6 +245,7 @@ export const SECTIONS: SectionDef[] = [
     radarr: () => fetchOverseerrArr(ctx, "radarr"),
     sonarr: () => fetchOverseerrArr(ctx, "sonarr"),
     plex: () => fetchOverseerrPlex(ctx),
+    connections: () => fetchOverseerrConnections(ctx),
     jobs: () => fetchOverseerrJobs(ctx),
   })),
   configSection("plex", "Impostazioni di Plex per l'audit: trascodifica (cartella temporanea, limiti), aggiornamento e manutenzione delle librerie, librerie e cartelle (senza account, token né reti).", (ctx) => ({
