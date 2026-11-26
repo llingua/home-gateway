@@ -1,8 +1,9 @@
+import { invalidateAllSections } from "./cache";
 import { findAction } from "./actions";
 import { hasScope } from "./auth";
 import { WriteError } from "./errors";
 import { APPROVAL_TTL_SECONDS, MAX_PENDING_PLANS, newPlanId, PROPOSAL_TTL_SECONDS, type StoredPlan, type Store } from "./store";
-import type { Client, Env, Fetcher } from "./types";
+import type { CacheLike, Client, Env, Fetcher } from "./types";
 
 /**
  * Scritture con approvazione umana.
@@ -20,6 +21,8 @@ export interface WriteCtx {
   now: () => number;
   /** Origine pubblica del gateway, per il link di approvazione. */
   origin: string;
+  /** Cache delle sezioni: si svuota dopo ogni modifica applicata, così la lettura successiva è aggiornata. */
+  cache?: CacheLike;
 }
 
 const iso = (seconds: number) => new Date(seconds * 1000).toISOString();
@@ -104,6 +107,7 @@ export async function applyPlan(w: WriteCtx, client: Client, planId: string) {
   const ctx = { env: w.env, fetch: w.fetch };
 
   try {
+    // Anche un'applicazione fallita può aver cambiato qualcosa a metà: la cache si svuota in ogni caso (nel `finally`).
     if (!(await action.stillValid(ctx, plan.input, plan.changes))) {
       throw new WriteError("state_changed", "Lo stato è cambiato dopo la proposta: nulla è stato modificato, rifai la proposta");
     }
@@ -118,6 +122,8 @@ export async function applyPlan(w: WriteCtx, client: Client, planId: string) {
     await w.store.audit({ event: "fallita", actor: client.name, planId: plan.id, action: plan.action, detail: message });
     if (error instanceof WriteError) throw error;
     throw new WriteError("apply_failed", `Applicazione fallita: ${message}`);
+  } finally {
+    await invalidateAllSections(w.cache);
   }
 }
 

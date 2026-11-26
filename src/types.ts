@@ -47,6 +47,7 @@ export type Fetcher = (input: string, init?: RequestInit) => Promise<Response>;
 export interface CacheLike {
   match(request: Request): Promise<Response | undefined>;
   put(request: Request, response: Response): Promise<void>;
+  delete(request: Request): Promise<boolean>;
 }
 
 /** Archivio chiave-valore (compatibile con un KV Namespace di Cloudflare), sostituibile nei test. */

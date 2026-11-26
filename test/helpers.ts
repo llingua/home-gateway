@@ -83,6 +83,9 @@ export class MemoryCache implements CacheLike {
   async put(request: Request, response: Response): Promise<void> {
     this.store.set(request.url, response.clone());
   }
+  async delete(request: Request): Promise<boolean> {
+    return this.store.delete(request.url);
+  }
 }
 
 export const CLIENTS = JSON.stringify({

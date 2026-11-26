@@ -33,7 +33,7 @@ Divisione dei compiti: **Home Assistant** fa i controlli di disponibilità dalla
 | `src/services/*.ts` | Adapter: `arr.ts` (Radarr/Sonarr, API v3 condivisa), `plex.ts`, `qbittorrent.ts`, `overseerr.ts`, `prowlarr.ts`, `bazarr.ts`, `proxmox.ts`, `cleanuparr.ts` (solo lettura delle impostazioni con `X-Api-Key`; per arr e client di download solo nome/tipo/stato, mai indirizzi o chiavi) |
 | `src/services/*-config.ts`, `config-common.ts` | Letture di configurazione di Bazarr, Overseerr, Plex, Proxmox (e Cleanuparr): whitelist per nome con `pickSimple` (solo valori semplici). Plex: solo preferenze elencate (trascodifica, manutenzione), mai account/token/reti; Proxmox: solo GET, mai IP/MAC/note/seriali, dischi dei guest ridotti a storage e dimensione; Bazarr/Overseerr: mai chiavi, utenti, indirizzi. Nessuna di queste sezioni ha azioni di scrittura (Proxmox è sola lettura per regola) |
 | `src/upstream.ts` | Chiamate ai servizi: credenziali Access, timeout, niente redirect, errori con messaggi statici |
-| `src/cache.ts` | Cache per sezione (solo risultati `ok`) |
+| `src/cache.ts` | Cache per sezione (solo risultati `ok`); `invalidateAllSections` svuota tutte le sezioni dopo OGNI applicazione (riuscita o fallita, nel `finally` di `applyPlan`), così una rilettura subito dopo una modifica mostra il valore nuovo. La Cache API è per sede Cloudflare: lo svuotamento vale per la sede che serve la richiesta, nelle altre la cache scade da sola (max 60 s) |
 | `test/` | Vitest; finto "internet" (`FakeNet`) e JWT firmati con chiave di prova |
 | `openapi.yaml` | Contratto dell'API: va tenuto allineato |
 | `docs/PRIMO-DEPLOY.md` | Passi manuali di prima messa online |
