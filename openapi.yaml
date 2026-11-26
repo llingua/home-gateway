@@ -1,0 +1,122 @@
+openapi: 3.1.0
+info:
+  title: home-gateway
+  version: 0.1.0
+  description: |
+    Livello di integrazione di casa Belinchebon. Sola lettura, nessun dato personale.
+    Autenticazione: Cloudflare Access (service token). Intestazioni da inviare:
+    `CF-Access-Client-Id` e `CF-Access-Client-Secret`.
+servers:
+  - url: https://gateway.belinchebon.com
+security:
+  - accessServiceToken: []
+paths:
+  /healthz:
+    get:
+      summary: Il Worker è vivo (senza autenticazione)
+      security: []
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean }, service: { type: string } } }
+  /v1/capabilities:
+    get:
+      summary: Sezioni disponibili e permessi del cliente
+      responses:
+        "200":
+          description: elenco
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  client: { type: string }
+                  sections:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name: { type: string }
+                        description: { type: string }
+                        scope: { type: string }
+                        cacheSeconds: { type: integer }
+                        allowed: { type: boolean }
+                        path: { type: string }
+  /v1/media/overview:
+    get:
+      summary: Tutte le sezioni in una sola richiesta
+      parameters:
+        - name: sections
+          in: query
+          required: false
+          description: Elenco separato da virgole (es. streams,queue). Se omesso, tutte.
+          schema: { type: string }
+      responses:
+        "200":
+          description: sezioni
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  generatedAt: { type: string, format: date-time }
+                  sections:
+                    type: object
+                    additionalProperties: { $ref: "#/components/schemas/Section" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+  /v1/media/{section}:
+    get:
+      summary: Una sezione
+      description: >
+        Sezioni: streams (riproduzioni Plex), downloads (qBittorrent), requests (Overseerr),
+        queue (code Radarr/Sonarr), upcoming (prossime uscite), library (librerie Plex e mancanti),
+        storage (spazio libero), health (avvisi di salute).
+      parameters:
+        - name: section
+          in: path
+          required: true
+          schema: { type: string, enum: [streams, downloads, requests, queue, upcoming, library, storage, health] }
+      responses:
+        "200":
+          description: sezione
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Section" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+components:
+  securitySchemes:
+    accessServiceToken:
+      type: apiKey
+      in: header
+      name: CF-Access-Client-Id
+      description: Va inviata anche CF-Access-Client-Secret.
+  schemas:
+    Section:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, error, unconfigured] }
+        data: { description: Dati della sezione (la forma dipende dalla sezione) }
+        error: { type: string, description: Messaggio breve, senza dati sensibili }
+        warnings:
+          type: array
+          items: { type: string }
+          description: Problemi parziali (un servizio ha risposto, un altro no)
+        cached: { type: boolean }
+  responses:
+    Error:
+      description: Errore
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: object
+                properties:
+                  code: { type: string }
+                  message: { type: string }

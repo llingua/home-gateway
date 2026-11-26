@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "home-gateway",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+
+  // Nessun indirizzo pubblico di default: il Worker risponde solo sul dominio
+  // personalizzato, che sta dietro Cloudflare Access.
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "gateway.belinchebon.com", "custom_domain": true }],
+
+  "observability": { "enabled": true },
+
+  // Valori NON segreti. I segreti (chiavi API, token) si impostano con
+  // `wrangler secret put` o dalla dashboard: vedi README.md.
+  "vars": {
+    "ACCESS_TEAM_DOMAIN": "llhome.cloudflareaccess.com",
+    "RADARR_URL": "https://radarr.belinchebon.com",
+    "SONARR_URL": "https://sonarr.belinchebon.com",
+    "OVERSEERR_URL": "https://overseerr.belinchebon.com",
+    "PLEX_URL": "https://plex.belinchebon.com",
+    "QBITTORRENT_URL": "https://qbt.belinchebon.com",
+
+    // App Access "home-gateway" (gateway.belinchebon.com). L'AUD non è un segreto.
+    "ACCESS_AUD": "7a14b721580364e4b5f397b8f971367c83bec4d1376257e391b2a51ec4b117ff",
+
+    // Clienti ammessi: Client ID del service token (non segreto) -> nome e permessi.
+    "CLIENTS": {
+      "c5d8112ae945f36d8e60548d2ed19115.access": { "name": "homepage", "scopes": ["media:read"] }
+    }
+  }
+}

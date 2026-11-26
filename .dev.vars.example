@@ -1,0 +1,12 @@
+# Copia in .dev.vars (che NON va nel repository) per `npm run dev`.
+# Valori di esempio: sostituiscili con quelli veri solo in locale.
+ACCESS_AUD=aud-tag-dell-app-access
+CLIENTS={"client-id-di-prova":{"name":"locale","scopes":["media:read"]}}
+CF_ACCESS_CLIENT_ID=
+CF_ACCESS_CLIENT_SECRET=
+RADARR_API_KEY=
+SONARR_API_KEY=
+OVERSEERR_API_KEY=
+PLEX_TOKEN=
+QBT_USERNAME=
+QBT_PASSWORD=
