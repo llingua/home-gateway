@@ -31,7 +31,7 @@ Il segreto resta nella configurazione locale del tuo computer: non committarla.
 
 **Agent SDK e altri client MCP "streamable HTTP" con intestazioni personalizzate:** stesso indirizzo e stesse due intestazioni.
 
-**Sessioni cloud di Claude Code (l'app Claude, le sessioni nel browser): funziona, provato dal vivo.**
+**Sessioni cloud di Claude Code (non la chat: per quella vedi sotto): funziona, provato dal vivo.**
 Le sessioni cloud non permettono intestazioni fisse nella configurazione, ma possono salvare **un segreto come credenziale dell'ambiente**: la sessione lo aggiunge da sola alle richieste verso un indirizzo, e l'agente non lo vede mai. Access vuole due intestazioni, quindi si divide così:
 - il **Client Secret** di `client-agent` si salva come credenziale dell'ambiente, per l'indirizzo `gateway.belinchebon.com`, con intestazione `CF-Access-Client-Secret`. Lo inserisce l'utente nel modulo che l'agente apre (strumento `request_credential`): l'agente non lo riceve;
 - il **Client ID** non è segreto: lo manda l'agente (`CF-Access-Client-Id: <client id>`).
