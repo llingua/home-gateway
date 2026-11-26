@@ -1,6 +1,6 @@
 # home-gateway
 
-Livello di integrazione di casa Belinchebon: **un'unica API** per interrogare Plex, Radarr, Sonarr, qBittorrent, Overseerr, Prowlarr (e, in futuro, altri servizi). Chi ha bisogno di un dato — la homepage, Home Assistant, un agente AI — chiama il gateway e non sa nulla dei servizi che ci sono dietro.
+Livello di integrazione di casa Belinchebon: **un'unica API** per interrogare Plex, Radarr, Sonarr, qBittorrent, Overseerr, Prowlarr, Bazarr (e, in futuro, altri servizi). Chi ha bisogno di un dato — la homepage, Home Assistant, un agente AI — chiama il gateway e non sa nulla dei servizi che ci sono dietro.
 
 È un Cloudflare Worker che gira sull'infrastruttura Cloudflare: nessun server da gestire.
 
@@ -31,12 +31,14 @@ Tutte le richieste sono `GET` e richiedono autenticazione (tranne `/healthz`, ch
 | `/v1/media/streams` | Riproduzioni Plex in corso | 15 s |
 | `/v1/media/downloads` | Velocità e stato dei torrent | 15 s |
 | `/v1/media/requests` | Richieste e problemi Overseerr (contatori) | 60 s |
+| `/v1/media/recent` | Ultimo film o serie reso disponibile (solo titolo) | 5 min |
 | `/v1/media/queue` | Code Radarr/Sonarr | 30 s |
 | `/v1/media/upcoming` | Prossime uscite (30 giorni) | 10 min |
 | `/v1/media/library` | Elementi nelle librerie Plex, contenuti ricercati | 10 min |
 | `/v1/media/storage` | Spazio libero sui volumi | 5 min |
 | `/v1/media/health` | Avvisi di salute Radarr/Sonarr | 2 min |
 | `/v1/media/indexers` | Indexer Prowlarr: totali, non attivi, avvisi | 2 min |
+| `/v1/media/subtitles` | Sottotitoli mancanti e problemi dei provider (Bazarr) | 5 min |
 
 Forma di una sezione:
 
@@ -63,7 +65,7 @@ Descrizione completa in [`openapi.yaml`](openapi.yaml). Gli errori hanno la form
 | `ACCESS_TEAM_DOMAIN` | Dominio del team Access (es. `llhome.cloudflareaccess.com`) |
 | `ACCESS_AUD` | AUD tag dell'app Access `home-gateway` (non segreto) |
 | `CLIENTS` | Clienti ammessi, come oggetto JSON (vedi sotto) |
-| `RADARR_URL`, `SONARR_URL`, `OVERSEERR_URL`, `PLEX_URL`, `PROWLARR_URL`, `QBITTORRENT_URL` | Indirizzi dei servizi (hanno un valore predefinito) |
+| `RADARR_URL`, `SONARR_URL`, `OVERSEERR_URL`, `PLEX_URL`, `PROWLARR_URL`, `BAZARR_URL`, `QBITTORRENT_URL` | Indirizzi dei servizi (hanno un valore predefinito) |
 
 `CLIENTS` associa il **Client ID** del service token (o l'email) a un nome e ai permessi:
 
@@ -84,6 +86,7 @@ I Client ID non sono segreti.
 | `RADARR_API_KEY`, `SONARR_API_KEY` | Settings → General → Security → API Key |
 | `OVERSEERR_API_KEY` | Settings → General → API Key (accettato anche come `OVERSEER_API_KEY`) |
 | `PROWLARR_API_KEY` | Settings → General → API Key |
+| `BAZARR_API_KEY` | Settings → General → Security → API key |
 | `PLEX_TOKEN` | `X-Plex-Token` (Plex Web → ⋯ → Get Info → View XML) |
 | `QBT_USERNAME`, `QBT_PASSWORD` | Credenziali della Web UI di qBittorrent |
 
@@ -112,4 +115,4 @@ I test (`test/`) usano un finto "internet" e token Access firmati con una chiave
 npm run deploy
 ```
 
-Passi manuali la prima volta (dominio, app Access, token, segreti): vedi `docs/PRIMO-DEPLOY.md`.
+Il deploy di produzione parte da solo a ogni merge su `main` (Workers Builds). Le build di anteprima dei branch sono **disattivate**: creerebbero indirizzi pubblici. Passi della prima messa online: `docs/PRIMO-DEPLOY.md`. Come collegare Home Assistant: `docs/CLIENT-HOME-ASSISTANT.md`.
