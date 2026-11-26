@@ -240,7 +240,8 @@ function addConfigFixtures(net: FakeNet): void {
     net.json(`${base}/system/status`, { version: "5.0.1", apiKeyHint: "ignorato" });
     net.json(`${base}/qualityprofile`, [
       {
-        name: "HD-1080p", upgradeAllowed: true, cutoff: 1001, minFormatScore: 0, cutoffFormatScore: 100,
+        id: 7, name: "HD-1080p", upgradeAllowed: true, cutoff: 1001, minFormatScore: 0, cutoffFormatScore: 100, minUpgradeFormatScore: 1,
+        formatItems: [{ format: 11, name: "x265 (HD)", score: -100 }, { format: 12, name: "Repack/Proper", score: 5 }],
         items: [
           { quality: { id: 1, name: "SDTV" }, items: [], allowed: false },
           { id: 1001, name: "WEB 1080p", items: [{ quality: { id: 3, name: "WEBDL-1080p" } }, { quality: { id: 15, name: "WEBRip-1080p" } }], allowed: true },

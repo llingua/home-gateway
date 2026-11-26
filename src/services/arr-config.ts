@@ -34,7 +34,10 @@ interface ProfileItem {
 }
 
 interface QualityProfile {
+  id?: number;
   name?: string;
+  minUpgradeFormatScore?: number;
+  formatItems?: Array<{ format?: number; name?: string; score?: number }>;
   cutoff?: number;
   upgradeAllowed?: boolean;
   minFormatScore?: number;
@@ -55,12 +58,16 @@ export async function fetchQualityProfiles(ctx: Ctx, service: ArrService) {
   return profiles.map((profile) => {
     const items = profile.items ?? [];
     return {
+      id: profile.id ?? null,
       name: profile.name ?? "",
       upgradeAllowed: profile.upgradeAllowed ?? false,
       cutoff: cutoffName(items, profile.cutoff),
       allowed: items.filter((item) => item.allowed).map((item) => item.quality?.name ?? item.name ?? ""),
       minFormatScore: profile.minFormatScore ?? null,
       cutoffFormatScore: profile.cutoffFormatScore ?? null,
+      minUpgradeFormatScore: profile.minUpgradeFormatScore ?? null,
+      // Formati personalizzati del profilo con il loro punteggio (id del formato = chiave per arr_quality_profile).
+      formatScores: (profile.formatItems ?? []).map((item) => ({ id: item.format ?? null, name: item.name ?? "", score: item.score ?? 0 })),
     };
   });
 }
@@ -76,13 +83,13 @@ export async function fetchRootFolders(ctx: Ctx, service: ArrService) {
 
 export async function fetchDownloadClients(ctx: Ctx, service: ArrService) {
   const clients = await get<Array<Record<string, unknown>>>(ctx, service, "/api/v3/downloadclient");
-  return clients.map((client) => pick(client, ["name", "implementation", "protocol", "enable", "priority", "removeCompletedDownloads", "removeFailedDownloads"]));
+  return clients.map((client) => pick(client, ["id", "name", "implementation", "protocol", "enable", "priority", "removeCompletedDownloads", "removeFailedDownloads"]));
 }
 
 export async function fetchArrIndexers(ctx: Ctx, service: ArrService) {
   const indexers = await get<Array<Record<string, unknown>>>(ctx, service, "/api/v3/indexer");
   return indexers.map((indexer) =>
-    pick(indexer, ["name", "implementation", "protocol", "enableRss", "enableAutomaticSearch", "enableInteractiveSearch", "priority", "downloadClientId"]),
+    pick(indexer, ["id", "name", "implementation", "protocol", "enableRss", "enableAutomaticSearch", "enableInteractiveSearch", "priority", "downloadClientId"]),
   );
 }
 
@@ -112,7 +119,7 @@ export async function fetchNaming(ctx: Ctx, service: ArrService) {
 
 export async function fetchDelayProfiles(ctx: Ctx, service: ArrService) {
   const profiles = await get<Array<Record<string, unknown>>>(ctx, service, "/api/v3/delayprofile");
-  return profiles.map((profile) => pick(profile, ["enableUsenet", "enableTorrent", "preferredProtocol", "usenetDelay", "torrentDelay", "order"]));
+  return profiles.map((profile) => pick(profile, ["id", "enableUsenet", "enableTorrent", "preferredProtocol", "usenetDelay", "torrentDelay", "bypassIfHighestQuality", "bypassIfAboveCustomFormatScore", "minimumCustomFormatScore", "order"]));
 }
 
 export async function fetchArrTags(ctx: Ctx, service: ArrService): Promise<string[]> {
