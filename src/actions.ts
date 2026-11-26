@@ -1,7 +1,7 @@
 import { WriteError } from "./errors";
 import { login } from "./services/qbittorrent";
 import type { PlanChange } from "./store";
-import { baseUrl, getJson, request, requireSecret } from "./upstream";
+import { baseUrl, getJson, request, requireSecret, type ServiceName } from "./upstream";
 import type { Ctx } from "./types";
 
 /**
@@ -18,6 +18,8 @@ export interface PlanDraft {
 
 export interface ActionDef {
   name: string;
+  /** Servizio che l'azione modifica. Proxmox è escluso dal tipo: si modifica solo a mano. */
+  service: Exclude<ServiceName, "proxmox">;
   description: string;
   scope: string;
   inputSchema: Record<string, unknown>;
@@ -52,6 +54,7 @@ async function readQbtPreferences(ctx: Ctx): Promise<{ base: string; headers: Re
 
 const qbittorrentPreferences: ActionDef = {
   name: "qbittorrent_preferences",
+  service: "qbittorrent",
   description:
     "qBittorrent: cambia i limiti di coda e di banda. Chiavi ammesse: " +
     Object.entries(QBT_RANGES).map(([key, [min, max]]) => `${key} (${min}-${max})`).join(", ") + ".",
@@ -145,6 +148,7 @@ async function readIndexer(ctx: Ctx, id: number): Promise<ProwlarrIndexer> {
 
 const prowlarrIndexerEnabled: ActionDef = {
   name: "prowlarr_indexer_enabled",
+  service: "prowlarr",
   description: "Prowlarr: attiva o disattiva un indexer (l'`id` si legge da get_config_prowlarr).",
   scope: "config:write",
   inputSchema: {

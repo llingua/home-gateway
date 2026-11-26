@@ -58,6 +58,11 @@ export interface RequestOptions {
 
 /** Esegue una richiesta verso un servizio. Non segue i redirect: un 3xx significa che Access ha chiesto il login. */
 export async function request(ctx: Ctx, url: string, options: RequestOptions = {}): Promise<Response> {
+  // Proxmox si modifica solo a mano: nessuna scrittura parte mai verso il suo indirizzo, qualunque sia il codice che la chiede.
+  const method = (options.method ?? "GET").toUpperCase();
+  if (method !== "GET" && method !== "HEAD" && url.startsWith(baseUrl(ctx.env, "proxmox"))) {
+    throw new UpstreamError("Proxmox è in sola lettura");
+  }
   let response: Response;
   try {
     response = await ctx.fetch(url, {

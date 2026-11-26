@@ -176,7 +176,7 @@ export async function authenticate(request: Request, env: Env, deps: AuthDeps): 
     const listed = parseClients(env.CLIENTS)[email];
     if (listed) return listed;
     const approvers = (env.APPROVERS ?? "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
-    if (approvers.includes(email)) return { name: "app-claude", scopes: ["media:read", "config:read", "config:write"] };
+    if (approvers.includes(email)) return { name: "app-claude", scopes: ["media:read", "media:request", "config:read", "config:write"] };
     throw new HttpError(403, "unknown_client", "Cliente non autorizzato");
   }
 
