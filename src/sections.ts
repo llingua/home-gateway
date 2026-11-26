@@ -11,7 +11,7 @@ import { fetchLastAvailable, fetchRequests } from "./services/overseerr";
 import { fetchLibraries, fetchStreams } from "./services/plex";
 import { fetchIndexers, fetchProwlarrConfig } from "./services/prowlarr";
 import { fetchProxmox } from "./services/proxmox";
-import { fetchBazarrProfiles, fetchBazarrSettings, fetchBazarrVersion } from "./services/bazarr-config";
+import { fetchBazarrLanguages, fetchBazarrProfiles, fetchBazarrSettings, fetchBazarrVersion } from "./services/bazarr-config";
 import { fetchOverseerrArr, fetchOverseerrJobs, fetchOverseerrMain, fetchOverseerrPlex, fetchOverseerrVersion } from "./services/overseerr-config";
 import { fetchPlexLibraries, fetchPlexPreferences, fetchPlexServer } from "./services/plex-config";
 import { fetchProxmoxBackups, fetchProxmoxDisks, fetchProxmoxGuests, fetchProxmoxNode, fetchProxmoxStorages } from "./services/proxmox-config";
@@ -237,6 +237,7 @@ export const SECTIONS: SectionDef[] = [
     version: () => fetchBazarrVersion(ctx),
     settings: () => fetchBazarrSettings(ctx),
     languageProfiles: () => fetchBazarrProfiles(ctx),
+    enabledLanguages: () => fetchBazarrLanguages(ctx),
   })),
   configSection("overseerr", "Impostazioni di Overseerr per l'audit: opzioni generali, server Radarr/Sonarr collegati (profili, cartelle, disponibilità minima), librerie Plex sincronizzate, lavori pianificati (senza chiavi né indirizzi).", (ctx) => ({
     version: () => fetchOverseerrVersion(ctx),
