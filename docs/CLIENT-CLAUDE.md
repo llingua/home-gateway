@@ -67,6 +67,7 @@ Come funziona: `mcp.belinchebon.com` è un'app Access con *Managed OAuth* (Acces
 - qBittorrent: limiti di coda, connessioni e banda; come si contano i torrent lenti.
 - Radarr e Sonarr: profili di ritardo, attivazione e priorità di indexer e client di download, soglie dei profili di qualità e punteggi dei formati personalizzati.
 - Prowlarr: attivare o disattivare un indexer.
+- Cleanuparr: tentativi e timeout delle chiamate, controlli di stato e connettività, conservazione dello storico, soglia delle importazioni fallite per Radarr e Sonarr.
 Claude propone con i valori prima e dopo, tu approvi su `/approve`, Claude applica e verifica; ogni modifica si annulla con una nuova proposta.
 
 Proxmox non si modifica da qui: né Claude né il gateway possono farlo.

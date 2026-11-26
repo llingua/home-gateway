@@ -22,6 +22,7 @@ Divisione dei compiti: **Home Assistant** fa i controlli di disponibilità dalla
 | `src/arr-actions.ts` | Azioni su Radarr/Sonarr: `arr_delay_profile`, `arr_indexer_flags`, `arr_download_client_flags`, `arr_quality_profile` (soglie e punteggi dei formati). Whitelist di campi con limiti; l'oggetto completo (credenziali comprese) passa solo dal gateway al servizio, con rilettura e verifica |
 | `src/writes.ts` | Ciclo propose / apply / undo / decide, controlli di permesso, stato e scadenze dei piani, registro |
 | `src/store.ts` | Archivio KV dei piani (`plan:<id>`) e del registro (`audit:...`), limite di 10 piani in attesa |
+| `src/cleanuparr-actions.ts` | Azioni su Cleanuparr: `cleanuparr_general` (retry, timeout, controlli, conservazione storico) e `cleanuparr_arr_failed_import` (soglia per Radarr/Sonarr). Le PUT di Cleanuparr sostituiscono l'intero oggetto: si rilegge e si rimanda tutto cambiando un solo campo; dry run, accesso, reti fidate e registri non si toccano |
 | `src/media.ts` | Ricerca film/serie e richiesta Overseerr (`search_media`, `request_media`): permesso `media:request`, conferma esplicita, tetto 10 al giorno, controllo "già richiesto", verifica e registro |
 | `src/approval.ts` | Pagina `/approve/<id>` per l'approvazione umana (Access dedicato, CSRF, escape HTML) |
 | `src/load.ts` | Caricamento di una sezione con cache, condiviso da REST e MCP |
