@@ -290,7 +290,7 @@ describe("Proxmox non si modifica mai", () => {
   it("nessuna azione modifica Proxmox e nessuno strumento lo nomina", async () => {
     expect(ACTIONS.length).toBeGreaterThan(0);
     for (const action of ACTIONS) {
-      expect(action.service as string).not.toBe("proxmox");
+      expect(action.services as string[]).not.toContain("proxmox");
       expect(`${action.name} ${action.description}`.toLowerCase()).not.toContain("proxmox");
     }
     const names = await listTools(() => ({ common_name: "writer-id" }));

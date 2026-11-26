@@ -1,3 +1,4 @@
+import { ARR_ACTIONS } from "./arr-actions";
 import { WriteError } from "./errors";
 import { login } from "./services/qbittorrent";
 import type { PlanChange } from "./store";
@@ -18,8 +19,8 @@ export interface PlanDraft {
 
 export interface ActionDef {
   name: string;
-  /** Servizio che l'azione modifica. Proxmox è escluso dal tipo: si modifica solo a mano. */
-  service: Exclude<ServiceName, "proxmox">;
+  /** Servizi che l'azione modifica. Proxmox è escluso dal tipo: si modifica solo a mano. */
+  services: Array<Exclude<ServiceName, "proxmox">>;
   description: string;
   scope: string;
   inputSchema: Record<string, unknown>;
@@ -37,13 +38,28 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 
 // --- qBittorrent: limiti di coda e di banda -------------------------------------------------------------------
 
-const QBT_RANGES: Record<string, [number, number]> = {
-  max_active_downloads: [1, 100],
-  max_active_uploads: [1, 100],
-  max_active_torrents: [1, 200],
-  dl_limit: [0, 2_000_000_000], // byte/secondo, 0 = illimitato
-  up_limit: [0, 2_000_000_000],
+/** Impostazioni ammesse: interi con limiti, oppure vero/falso. Niente percorsi, credenziali, rete o azioni al raggiungimento del rapporto. */
+type QbtField = { type: "int"; min: number; max: number } | { type: "bool" };
+const QBT_FIELDS: Record<string, QbtField> = {
+  max_active_downloads: { type: "int", min: 1, max: 100 },
+  max_active_uploads: { type: "int", min: 1, max: 100 },
+  max_active_torrents: { type: "int", min: 1, max: 200 },
+  max_active_checking_torrents: { type: "int", min: 1, max: 10 },
+  dl_limit: { type: "int", min: 0, max: 2_000_000_000 }, // byte/secondo, 0 = illimitato
+  up_limit: { type: "int", min: 0, max: 2_000_000_000 },
+  alt_dl_limit: { type: "int", min: 0, max: 2_000_000_000 }, // limiti della modalità alternativa
+  alt_up_limit: { type: "int", min: 0, max: 2_000_000_000 },
+  max_connec: { type: "int", min: 1, max: 5000 },
+  max_connec_per_torrent: { type: "int", min: 1, max: 1000 },
+  max_uploads: { type: "int", min: 1, max: 500 },
+  max_uploads_per_torrent: { type: "int", min: 1, max: 100 },
+  queueing_enabled: { type: "bool" },
+  dont_count_slow_torrents: { type: "bool" },
+  slow_torrent_dl_rate_threshold: { type: "int", min: 1, max: 100_000 }, // KiB/s
+  slow_torrent_ul_rate_threshold: { type: "int", min: 1, max: 100_000 },
+  slow_torrent_inactive_timer: { type: "int", min: 1, max: 3600 }, // secondi
 };
+const qbtLabel = (field: QbtField) => (field.type === "bool" ? "vero/falso" : `${field.min}-${field.max}`);
 
 async function readQbtPreferences(ctx: Ctx): Promise<{ base: string; headers: Record<string, string>; prefs: Record<string, unknown> }> {
   const base = baseUrl(ctx.env, "qbittorrent");
@@ -54,17 +70,19 @@ async function readQbtPreferences(ctx: Ctx): Promise<{ base: string; headers: Re
 
 const qbittorrentPreferences: ActionDef = {
   name: "qbittorrent_preferences",
-  service: "qbittorrent",
+  services: ["qbittorrent"],
   description:
-    "qBittorrent: cambia i limiti di coda e di banda. Chiavi ammesse: " +
-    Object.entries(QBT_RANGES).map(([key, [min, max]]) => `${key} (${min}-${max})`).join(", ") + ".",
+    "qBittorrent: cambia i limiti di coda, di connessioni e di banda e come si contano i torrent lenti. Chiavi ammesse: " +
+    Object.entries(QBT_FIELDS).map(([key, field]) => `${key} (${qbtLabel(field)})`).join(", ") + ".",
   scope: "config:write",
   inputSchema: {
     type: "object",
     properties: {
       changes: {
         type: "object",
-        properties: Object.fromEntries(Object.entries(QBT_RANGES).map(([key, [min, max]]) => [key, { type: "integer", minimum: min, maximum: max }])),
+        properties: Object.fromEntries(
+          Object.entries(QBT_FIELDS).map(([key, field]) => [key, field.type === "bool" ? { type: "boolean" } : { type: "integer", minimum: field.min, maximum: field.max }]),
+        ),
         additionalProperties: false,
       },
     },
@@ -73,12 +91,14 @@ const qbittorrentPreferences: ActionDef = {
   },
   parse(input) {
     if (!isRecord(input) || !isRecord(input.changes)) throw new WriteError("invalid_input", "Serve un oggetto `changes` con le impostazioni da cambiare");
-    const out: Record<string, number> = {};
+    const out: Record<string, number | boolean> = {};
     for (const [key, value] of Object.entries(input.changes)) {
-      const range = QBT_RANGES[key];
-      if (!range) throw new WriteError("invalid_input", `Impostazione non modificabile: ${key}`);
-      if (typeof value !== "number" || !Number.isInteger(value) || value < range[0] || value > range[1]) {
-        throw new WriteError("invalid_input", `${key} deve essere un intero tra ${range[0]} e ${range[1]}`);
+      const field = QBT_FIELDS[key];
+      if (!field) throw new WriteError("invalid_input", `Impostazione non modificabile: ${key}`);
+      if (field.type === "bool") {
+        if (typeof value !== "boolean") throw new WriteError("invalid_input", `${key} deve essere true o false`);
+      } else if (typeof value !== "number" || !Number.isInteger(value) || value < field.min || value > field.max) {
+        throw new WriteError("invalid_input", `${key} deve essere un intero tra ${field.min} e ${field.max}`);
       }
       out[key] = value;
     }
@@ -86,15 +106,15 @@ const qbittorrentPreferences: ActionDef = {
     return { changes: out };
   },
   async plan(ctx, input) {
-    const wanted = input.changes as Record<string, number>;
+    const wanted = input.changes as Record<string, number | boolean>;
     const { prefs } = await readQbtPreferences(ctx);
     const changes: PlanChange[] = [];
-    const before: Record<string, number> = {};
+    const before: Record<string, number | boolean> = {};
     for (const [key, to] of Object.entries(wanted)) {
       const from = prefs[key];
       if (from === to) continue;
       changes.push({ target: "qBittorrent", field: key, from, to });
-      if (typeof from === "number") before[key] = from;
+      if (typeof from === "number" || typeof from === "boolean") before[key] = from;
     }
     if (changes.length === 0) throw new WriteError("no_change", "Nessuna modifica: i valori sono già questi");
     return {
@@ -108,7 +128,7 @@ const qbittorrentPreferences: ActionDef = {
     return changes.every((change) => prefs[change.field] === change.from);
   },
   async apply(ctx, input) {
-    const wanted = input.changes as Record<string, number>;
+    const wanted = input.changes as Record<string, number | boolean>;
     const { base, headers } = await readQbtPreferences(ctx);
     await request(ctx, `${base}/api/v2/app/setPreferences`, {
       method: "POST",
@@ -148,7 +168,7 @@ async function readIndexer(ctx: Ctx, id: number): Promise<ProwlarrIndexer> {
 
 const prowlarrIndexerEnabled: ActionDef = {
   name: "prowlarr_indexer_enabled",
-  service: "prowlarr",
+  services: ["prowlarr"],
   description: "Prowlarr: attiva o disattiva un indexer (l'`id` si legge da get_config_prowlarr).",
   scope: "config:write",
   inputSchema: {
@@ -197,7 +217,7 @@ const prowlarrIndexerEnabled: ActionDef = {
   },
 };
 
-export const ACTIONS: ActionDef[] = [qbittorrentPreferences, prowlarrIndexerEnabled];
+export const ACTIONS: ActionDef[] = [qbittorrentPreferences, prowlarrIndexerEnabled, ...ARR_ACTIONS];
 
 export function findAction(name: string): ActionDef | undefined {
   return ACTIONS.find((action) => action.name === name);

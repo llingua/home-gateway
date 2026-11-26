@@ -66,13 +66,16 @@ describe("sezioni di configurazione: contenuto", () => {
     const d = section.data;
     expect(d.version).toBe("5.0.1");
     expect(d.qualityProfiles).toEqual([
-      { name: "HD-1080p", upgradeAllowed: true, cutoff: "WEB 1080p", allowed: ["WEB 1080p", "Bluray-1080p"], minFormatScore: 0, cutoffFormatScore: 100 },
+      {
+        id: 7, name: "HD-1080p", upgradeAllowed: true, cutoff: "WEB 1080p", allowed: ["WEB 1080p", "Bluray-1080p"], minFormatScore: 0, cutoffFormatScore: 100, minUpgradeFormatScore: 1,
+        formatScores: [{ id: 11, name: "x265 (HD)", score: -100 }, { id: 12, name: "Repack/Proper", score: 5 }],
+      },
     ]);
     expect(d.customFormats).toEqual(["x265 (HD)", "Repack/Proper"]);
     expect(d.rootFolders).toEqual([{ path: "/data/media", freeGb: 770 }]);
-    expect(d.downloadClients).toEqual([{ name: "qBittorrent", implementation: "QBittorrent", protocol: "torrent", enable: true, priority: 1, removeCompletedDownloads: true }]);
+    expect(d.downloadClients).toEqual([{ id: 7, name: "qBittorrent", implementation: "QBittorrent", protocol: "torrent", enable: true, priority: 1, removeCompletedDownloads: true }]);
     expect(d.indexers).toEqual([
-      { name: "Prowlarr (Torznab)", implementation: "Torznab", protocol: "torrent", enableRss: true, enableAutomaticSearch: true, enableInteractiveSearch: true, priority: 25 },
+      { id: 4, name: "Prowlarr (Torznab)", implementation: "Torznab", protocol: "torrent", enableRss: true, enableAutomaticSearch: true, enableInteractiveSearch: true, priority: 25 },
     ]);
     expect(d.mediaManagement).toMatchObject({ copyUsingHardlinks: true, recycleBinEnabled: true, recycleBinCleanupDays: 7 });
     expect(d.naming.standardMovieFormat).toBe("{Movie Title} ({Release Year})");
