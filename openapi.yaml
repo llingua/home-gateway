@@ -133,7 +133,7 @@ paths:
         - name: service
           in: path
           required: true
-          schema: { type: string, enum: [radarr, sonarr, prowlarr, qbittorrent] }
+          schema: { type: string, enum: [radarr, sonarr, prowlarr, qbittorrent, cleanuparr] }
       responses:
         "200":
           description: sezione di configurazione

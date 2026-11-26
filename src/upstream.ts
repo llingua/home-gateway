@@ -12,11 +12,12 @@ const DEFAULT_URLS = {
   bazarr: "https://bazarr.belinchebon.com",
   proxmox: "https://proxmox.belinchebon.com",
   qbittorrent: "https://qbt.belinchebon.com",
+  cleanuparr: "https://cleanuparr.belinchebon.com",
 } as const;
 
 export type ServiceName = keyof typeof DEFAULT_URLS;
 
-type UrlVar = "RADARR_URL" | "SONARR_URL" | "OVERSEERR_URL" | "PLEX_URL" | "PROWLARR_URL" | "BAZARR_URL" | "PROXMOX_URL" | "QBITTORRENT_URL";
+type UrlVar = "RADARR_URL" | "SONARR_URL" | "OVERSEERR_URL" | "PLEX_URL" | "PROWLARR_URL" | "BAZARR_URL" | "PROXMOX_URL" | "QBITTORRENT_URL" | "CLEANUPARR_URL";
 
 const URL_VARS: Record<ServiceName, UrlVar> = {
   radarr: "RADARR_URL",
@@ -27,6 +28,7 @@ const URL_VARS: Record<ServiceName, UrlVar> = {
   bazarr: "BAZARR_URL",
   proxmox: "PROXMOX_URL",
   qbittorrent: "QBITTORRENT_URL",
+  cleanuparr: "CLEANUPARR_URL",
 };
 
 export function baseUrl(env: Env, service: ServiceName): string {

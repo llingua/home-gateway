@@ -34,6 +34,11 @@ describe("scrubSecrets", () => {
     expect(out).toEqual({ name: "ok", nested: { keep: 1, list: [{ fine: true }] } });
   });
 
+  it("toglie le chiavi private ma conserva le impostazioni che contengono 'private' (ignorePrivate)", () => {
+    const out = scrubSecrets({ privateKey: "x", private_key: "x", PrivateKey: "x", ignorePrivate: true, deletePrivate: false, privacyType: "Public" });
+    expect(out).toEqual({ ignorePrivate: true, deletePrivate: false, privacyType: "Public" });
+  });
+
   it("oscura i valori che hanno l'aspetto di una chiave, anche sotto un nome innocuo", () => {
     const out = scrubSecrets({
       a: "0123456789abcdef0123456789abcdef", b: "Bearer abc.def.ghi", c: "http://user:pass@host/x", d: "PVEAPIToken=u@pve!t=segreto",
@@ -107,7 +112,7 @@ describe("sezioni di configurazione: nessuna fuga di segreti", () => {
     const { response } = await get("/v1/config/overview", AGENT());
     expect(response.status).toBe(200);
     const text = await response.text();
-    expect(Object.keys(JSON.parse(text).sections)).toEqual(["config_radarr", "config_sonarr", "config_prowlarr", "config_qbittorrent"]);
+    expect(Object.keys(JSON.parse(text).sections)).toEqual(["config_radarr", "config_sonarr", "config_prowlarr", "config_qbittorrent", "config_cleanuparr"]);
     for (const secret of LEAKS) expect(text, `trapelato: ${secret}`).not.toContain(secret);
   });
 
@@ -188,10 +193,10 @@ describe("MCP e configurazione", () => {
     expect(names.some((n) => n.startsWith("config_"))).toBe(false);
   });
 
-  it("get_config_overview per l'agente: 4 sezioni, nessun segreto", async () => {
+  it("get_config_overview per l'agente: 5 sezioni, nessun segreto", async () => {
     const { json } = await rpc(AGENT(), "tools/call", { name: "get_config_overview", arguments: {} });
     const text = json.result.content[0].text;
-    expect(Object.keys(JSON.parse(text).sections)).toHaveLength(4);
+    expect(Object.keys(JSON.parse(text).sections)).toHaveLength(5);
     for (const secret of LEAKS) expect(text, `trapelato: ${secret}`).not.toContain(secret);
   });
 });
