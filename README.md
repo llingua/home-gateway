@@ -47,6 +47,10 @@ Forma di una sezione:
 { "status": "ok", "data": { }, "warnings": ["episodes: Errore del servizio (HTTP 500)"], "cached": true }
 ```
 
+### MCP (per Claude e altri agenti)
+
+`POST /mcp` (JSON-RPC 2.0, trasporto "streamable HTTP" senza sessioni): `initialize`, `ping`, `tools/list`, `tools/call`. Gli strumenti corrispondono alle sezioni (`get_streams`, `get_queue`, ...) più `get_overview`; ogni cliente vede solo quelli permessi. Sola lettura. Come collegarlo: `docs/CLIENT-CLAUDE.md`.
+
 Descrizione completa in [`openapi.yaml`](openapi.yaml). Gli errori hanno la forma `{ "error": { "code": "...", "message": "..." } }`.
 
 ## Sicurezza

@@ -1,6 +1,7 @@
 import { authenticate, hasScope } from "./auth";
-import { withCache } from "./cache";
 import { HttpError } from "./errors";
+import { loadSection as loadSectionWith } from "./load";
+import { handleMcp } from "./mcp";
 import { findSection, SECTIONS, type SectionDef } from "./sections";
 import type { CacheLike, Client, Env, Fetcher, SectionResult } from "./types";
 
@@ -25,9 +26,8 @@ function errorResponse(error: HttpError): Response {
   return json({ error: { code: error.code, message: error.message } }, error.status);
 }
 
-async function loadSection(section: SectionDef, env: Env, deps: AppDeps): Promise<SectionResult> {
-  const ctx = { env, fetch: deps.fetch };
-  return withCache(deps.cache, section.name, section.ttl, () => section.load(ctx));
+function loadSection(section: SectionDef, env: Env, deps: AppDeps): Promise<SectionResult> {
+  return loadSectionWith(section, env, deps);
 }
 
 function requireScope(client: Client, section: SectionDef): void {
@@ -44,11 +44,16 @@ export async function handle(request: Request, env: Env, deps: AppDeps): Promise
     // L'unica risposta senza autenticazione: serve solo a sapere che il Worker è vivo.
     if (path === "/healthz") return json({ ok: true, service: "home-gateway" });
 
-    if (request.method !== "GET") {
+    // L'MCP usa POST; tutto il resto dell'API è in sola lettura (GET).
+    if (request.method !== "GET" && path !== "/mcp") {
       throw new HttpError(405, "method_not_allowed", "Sono ammesse solo richieste GET");
     }
 
     const client = await authenticate(request, env, { fetch: deps.fetch, now: deps.now });
+
+    if (path === "/mcp") {
+      return handleMcp(request, client, { env, fetch: deps.fetch, cache: deps.cache, now: deps.now });
+    }
 
     if (path === "/v1/capabilities") {
       return json({

@@ -44,6 +44,25 @@ paths:
                         cacheSeconds: { type: integer }
                         allowed: { type: boolean }
                         path: { type: string }
+  /mcp:
+    post:
+      summary: Interfaccia MCP (JSON-RPC 2.0) per agenti come Claude
+      description: >
+        Metodi: initialize, ping, tools/list, tools/call. Strumenti di sola lettura (get_overview e uno per sezione),
+        filtrati in base ai permessi del cliente. Vedi docs/CLIENT-CLAUDE.md.
+        Le richieste con intestazione Origin sono rifiutate; dimensione massima 64 KB.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { jsonrpc: { type: string, enum: ["2.0"] }, id: {}, method: { type: string }, params: { type: object } } }
+      responses:
+        "200": { description: risposta JSON-RPC }
+        "202": { description: notifica accettata (nessun corpo) }
+        "400": { description: JSON non valido o versione del protocollo non supportata }
+        "403": { description: Origin non ammessa }
+        "405": { description: metodo diverso da POST }
+        "413": { description: richiesta troppo grande }
   /v1/media/overview:
     get:
       summary: Tutte le sezioni in una sola richiesta
