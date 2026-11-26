@@ -43,6 +43,7 @@ Tutte le richieste sono `GET` e richiedono autenticazione (tranne `/healthz`, ch
 | `/v1/config/overview` | **Audit**: impostazioni di tutti i servizi (permesso `config:read`) | 1 min |
 | `/v1/config/radarr`, `/v1/config/sonarr` | Profili di qualità, formati personalizzati, cartelle, client di download, indexer, naming, ritardi, tag | 1 min |
 | `/v1/config/prowlarr` | Indexer, applicazioni collegate, profili, client di download | 1 min |
+| `/v1/config/cleanuparr` | Regole di pulizia coda (stallo, lentezza, importazioni fallite), blocco malware, pulizia dei download, opzioni generali (senza indirizzi né chiavi) | 1 min |
 | `/v1/config/qbittorrent` | Percorsi, code, limiti, rapporto di condivisione, categorie | 1 min |
 
 ### Permessi e audit delle configurazioni
@@ -108,6 +109,7 @@ I Client ID non sono segreti.
 | `PROXMOX_API_TOKEN` | Token API di sola lettura, formato `utente@realm!nome=segreto`: vedi `docs/PROXMOX-TOKEN.md` |
 | `PLEX_TOKEN` | `X-Plex-Token` (Plex Web → ⋯ → Get Info → View XML) |
 | `QBT_USERNAME`, `QBT_PASSWORD` | Credenziali della Web UI di qBittorrent |
+| `CLEANUPARR_API_KEY` | Chiave API di Cleanuparr (Account → API key), per leggerne le impostazioni |
 | `APPROVAL_SECRET`, `APPROVERS` | Livello 3: chiave per i token CSRF e email (separate da virgola) di chi può approvare: vedi `docs/APPROVAZIONI.md` |
 
 Un servizio senza i suoi segreti non è un errore: la sezione risulta `unconfigured`.

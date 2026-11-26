@@ -11,6 +11,10 @@ import { fetchLastAvailable, fetchRequests } from "./services/overseerr";
 import { fetchLibraries, fetchStreams } from "./services/plex";
 import { fetchIndexers, fetchProwlarrConfig } from "./services/prowlarr";
 import { fetchProxmox } from "./services/proxmox";
+import {
+  fetchCleanuparrArr, fetchCleanuparrDownloadCleaner, fetchCleanuparrDownloadClients, fetchCleanuparrGeneral,
+  fetchCleanuparrMalwareBlocker, fetchCleanuparrQueueCleaner, fetchCleanuparrSlowRules, fetchCleanuparrStallRules,
+} from "./services/cleanuparr";
 import type { Ctx, SectionResult } from "./types";
 
 /**
@@ -224,6 +228,17 @@ export const SECTIONS: SectionDef[] = [
   })),
   configSection("qbittorrent", "Impostazioni di qBittorrent per l'audit: percorsi, code, limiti, rapporto di condivisione, categorie (senza credenziali, proxy né programmi da eseguire).", (ctx) => ({
     qbittorrent: () => fetchQbtConfig(ctx),
+  })),
+  configSection("cleanuparr", "Impostazioni di Cleanuparr per l'audit: pulizia della coda (regole di stallo, lentezza, importazioni fallite), blocco malware, pulizia dei download, opzioni generali (senza indirizzi, chiavi né password).", (ctx) => ({
+    queueCleaner: () => fetchCleanuparrQueueCleaner(ctx),
+    stallRules: () => fetchCleanuparrStallRules(ctx),
+    slowRules: () => fetchCleanuparrSlowRules(ctx),
+    malwareBlocker: () => fetchCleanuparrMalwareBlocker(ctx),
+    downloadCleaner: () => fetchCleanuparrDownloadCleaner(ctx),
+    general: () => fetchCleanuparrGeneral(ctx),
+    downloadClients: () => fetchCleanuparrDownloadClients(ctx),
+    sonarr: () => fetchCleanuparrArr(ctx, "sonarr"),
+    radarr: () => fetchCleanuparrArr(ctx, "radarr"),
   })),
 ];
 

@@ -24,8 +24,8 @@ Divisione dei compiti: **Home Assistant** fa i controlli di disponibilità dalla
 | `src/media.ts` | Ricerca film/serie e richiesta Overseerr (`search_media`, `request_media`): permesso `media:request`, conferma esplicita, tetto 10 al giorno, controllo "già richiesto", verifica e registro |
 | `src/approval.ts` | Pagina `/approve/<id>` per l'approvazione umana (Access dedicato, CSRF, escape HTML) |
 | `src/load.ts` | Caricamento di una sezione con cache, condiviso da REST e MCP |
-| `src/sections.ts` | Le "capacità" esposte (gruppo `media`: streams, downloads, requests, recent, queue, upcoming, library, storage, health, indexers, subtitles, proxmox; gruppo `config`, permesso `config:read`: config_radarr, config_sonarr, config_prowlarr, config_qbittorrent): ognuna con permesso, cache e funzione di caricamento |
-| `src/services/*.ts` | Adapter: `arr.ts` (Radarr/Sonarr, API v3 condivisa), `plex.ts`, `qbittorrent.ts`, `overseerr.ts`, `prowlarr.ts`, `bazarr.ts`, `proxmox.ts` |
+| `src/sections.ts` | Le "capacità" esposte (gruppo `media`: streams, downloads, requests, recent, queue, upcoming, library, storage, health, indexers, subtitles, proxmox; gruppo `config`, permesso `config:read`: config_radarr, config_sonarr, config_prowlarr, config_qbittorrent, config_cleanuparr): ognuna con permesso, cache e funzione di caricamento |
+| `src/services/*.ts` | Adapter: `arr.ts` (Radarr/Sonarr, API v3 condivisa), `plex.ts`, `qbittorrent.ts`, `overseerr.ts`, `prowlarr.ts`, `bazarr.ts`, `proxmox.ts`, `cleanuparr.ts` (solo lettura delle impostazioni con `X-Api-Key`; per arr e client di download solo nome/tipo/stato, mai indirizzi o chiavi) |
 | `src/upstream.ts` | Chiamate ai servizi: credenziali Access, timeout, niente redirect, errori con messaggi statici |
 | `src/cache.ts` | Cache per sezione (solo risultati `ok`) |
 | `test/` | Vitest; finto "internet" (`FakeNet`) e JWT firmati con chiave di prova |
@@ -67,4 +67,5 @@ In produzione su `gateway.belinchebon.com` (Cloudflare Workers Builds: ogni merg
 - I segreti dei servizi li imposta l'utente dalla dashboard (Settings → Variables and Secrets). `OVERSEER_API_KEY` (una R) è accettato come alias di `OVERSEERR_API_KEY`.
 - Nuovo cliente = un service token in Access, una riga in `CLIENTS` (`wrangler.jsonc`) e il token nella policy "Gateway clients" dell'app `home-gateway`. Guida per Home Assistant: `docs/CLIENT-HOME-ASSISTANT.md`.
 - Servizi collegati: Plex, Radarr, Sonarr, qBittorrent, Overseerr, Prowlarr, Bazarr, Proxmox (token API di sola lettura, utente dedicato con ruolo PVEAuditor: `docs/PROXMOX-TOKEN.md`; l'app Access di Proxmox ha la policy "Gateway upstream"). Prima di aggiungerne altri si decide con l'utente quali dati servono davvero (candidati: Home Assistant, Synology, Jarvis).
+- **Cleanuparr** (`config_cleanuparr`, sola lettura): serve il segreto `CLEANUPARR_API_KEY` (UI di Cleanuparr → Account → chiave API) e la policy "Gateway upstream" sulla sua app Access (già aggiunta). Le risposte di Cleanuparr contengono indirizzi, chiavi e password di arr e client di download: l'adapter le scarta con whitelist e `stripAddresses`. Percorsi non verificati sul programma vero finché la chiave non è impostata (campi di regole stallo/lentezza non documentati).
 - CI: `npm ci` richiede `@types/node` esplicito nelle dipendenze (altrimenti il lockfile risulta incoerente su GitHub).

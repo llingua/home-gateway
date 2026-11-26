@@ -36,6 +36,9 @@ export interface Env {
   QBITTORRENT_URL?: string;
   QBT_USERNAME?: string;
   QBT_PASSWORD?: string;
+  CLEANUPARR_URL?: string;
+  /** Chiave API di Cleanuparr (Account → API key), solo lettura delle impostazioni. */
+  CLEANUPARR_API_KEY?: string;
 }
 
 export type Fetcher = (input: string, init?: RequestInit) => Promise<Response>;

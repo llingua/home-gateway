@@ -60,7 +60,7 @@ describe("capacità", () => {
     expect(media.every((s) => s.allowed)).toBe(true);
     // La homepage ha solo media:read: le sezioni di configurazione ci sono nell'elenco ma non le sono consentite.
     const config = body.sections.filter((s) => s.group === "config");
-    expect(config.map((s) => s.name)).toEqual(["config_radarr", "config_sonarr", "config_prowlarr", "config_qbittorrent"]);
+    expect(config.map((s) => s.name)).toEqual(["config_radarr", "config_sonarr", "config_prowlarr", "config_qbittorrent", "config_cleanuparr"]);
     expect(config.every((s) => !s.allowed)).toBe(true);
   });
 });

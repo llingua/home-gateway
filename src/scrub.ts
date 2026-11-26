@@ -9,7 +9,7 @@
 export const REDACTED = "[redatto]";
 
 const SECRET_KEY =
-  /(api[-_ ]?key|apikey|pass(word|wd|phrase)?$|pass(word|wd|phrase)|secret|token|cookie|authorization|credential|username|e-?mail|salt|private|bearer|session|^sid$|^fields$|^auth$|proxy_(ip|username|password|port)|autorun|webhook)/i;
+  /(api[-_ ]?key|apikey|pass(word|wd|phrase)?$|pass(word|wd|phrase)|secret|token|cookie|authorization|credential|username|e-?mail|salt|private[-_ ]?key|bearer|session|^sid$|^fields$|^auth$|proxy_(ip|username|password|port)|autorun|webhook)/i;
 
 const LONG_HEX = /^[a-f0-9]{32,}$/i;
 const LONG_B64 = /^[A-Za-z0-9+/_-]{40,}={0,2}$/;
