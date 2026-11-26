@@ -34,3 +34,26 @@ export function scrubSecrets<T>(value: T, depth = 0): T {
   }
   return value;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Chiavi che indicano indirizzi o reti: mai nelle risposte (le chiavi e le password le toglie anche scrubSecrets). */
+const ADDRESS_KEY = /(url|uri|host|address|network|ip$|endpoint|domain)/i;
+const URL_VALUE = /^[a-z][a-z0-9+.-]*:\/\//i;
+const IPV4 = /\b\d{1,3}(\.\d{1,3}){3}\b/;
+
+/** Copia i dati togliendo indirizzi, reti e URL. Usato per le sezioni con campi noti solo in parte. */
+export function stripAddresses(value: unknown, depth = 0): unknown {
+  if (depth > 8) return null;
+  if (typeof value === "string") return URL_VALUE.test(value) || IPV4.test(value) ? "[omesso]" : value.slice(0, 200);
+  if (Array.isArray(value)) return value.slice(0, 100).map((item) => stripAddresses(item, depth + 1));
+  if (isRecord(value)) {
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+      if (ADDRESS_KEY.test(key)) continue;
+      out[key] = stripAddresses(item, depth + 1);
+    }
+    return out;
+  }
+  return value;
+}

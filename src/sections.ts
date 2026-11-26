@@ -11,6 +11,10 @@ import { fetchLastAvailable, fetchRequests } from "./services/overseerr";
 import { fetchLibraries, fetchStreams } from "./services/plex";
 import { fetchIndexers, fetchProwlarrConfig } from "./services/prowlarr";
 import { fetchProxmox } from "./services/proxmox";
+import { fetchBazarrProfiles, fetchBazarrSettings, fetchBazarrVersion } from "./services/bazarr-config";
+import { fetchOverseerrArr, fetchOverseerrJobs, fetchOverseerrMain, fetchOverseerrPlex, fetchOverseerrVersion } from "./services/overseerr-config";
+import { fetchPlexLibraries, fetchPlexPreferences, fetchPlexServer } from "./services/plex-config";
+import { fetchProxmoxBackups, fetchProxmoxDisks, fetchProxmoxGuests, fetchProxmoxNode, fetchProxmoxStorages } from "./services/proxmox-config";
 import {
   fetchCleanuparrArr, fetchCleanuparrDownloadCleaner, fetchCleanuparrDownloadClients, fetchCleanuparrGeneral,
   fetchCleanuparrMalwareBlocker, fetchCleanuparrQueueCleaner, fetchCleanuparrSlowRules, fetchCleanuparrStallRules,
@@ -228,6 +232,31 @@ export const SECTIONS: SectionDef[] = [
   })),
   configSection("qbittorrent", "Impostazioni di qBittorrent per l'audit: percorsi, code, limiti, rapporto di condivisione, categorie (senza credenziali, proxy né programmi da eseguire).", (ctx) => ({
     qbittorrent: () => fetchQbtConfig(ctx),
+  })),
+  configSection("bazarr", "Impostazioni di Bazarr per l'audit: opzioni di ricerca e aggiornamento dei sottotitoli, punteggi minimi, provider attivi (solo i nomi), profili lingua (senza chiavi, utenti né indirizzi).", (ctx) => ({
+    version: () => fetchBazarrVersion(ctx),
+    settings: () => fetchBazarrSettings(ctx),
+    languageProfiles: () => fetchBazarrProfiles(ctx),
+  })),
+  configSection("overseerr", "Impostazioni di Overseerr per l'audit: opzioni generali, server Radarr/Sonarr collegati (profili, cartelle, disponibilità minima), librerie Plex sincronizzate, lavori pianificati (senza chiavi né indirizzi).", (ctx) => ({
+    version: () => fetchOverseerrVersion(ctx),
+    main: () => fetchOverseerrMain(ctx),
+    radarr: () => fetchOverseerrArr(ctx, "radarr"),
+    sonarr: () => fetchOverseerrArr(ctx, "sonarr"),
+    plex: () => fetchOverseerrPlex(ctx),
+    jobs: () => fetchOverseerrJobs(ctx),
+  })),
+  configSection("plex", "Impostazioni di Plex per l'audit: trascodifica (cartella temporanea, limiti), aggiornamento e manutenzione delle librerie, librerie e cartelle (senza account, token né reti).", (ctx) => ({
+    server: () => fetchPlexServer(ctx),
+    preferences: () => fetchPlexPreferences(ctx),
+    libraries: () => fetchPlexLibraries(ctx),
+  })),
+  configSection("proxmox", "Configurazione di Proxmox per l'audit, SOLO LETTURA (Proxmox non si modifica dal gateway): nodo, guest (risorse, avvio automatico, dischi), backup pianificati, storage, salute dei dischi (senza indirizzi, utenti né note).", (ctx) => ({
+    node: () => fetchProxmoxNode(ctx),
+    guests: () => fetchProxmoxGuests(ctx),
+    backupJobs: () => fetchProxmoxBackups(ctx),
+    storages: () => fetchProxmoxStorages(ctx),
+    disks: () => fetchProxmoxDisks(ctx),
   })),
   configSection("cleanuparr", "Impostazioni di Cleanuparr per l'audit: pulizia della coda (regole di stallo, lentezza, importazioni fallite), blocco malware, pulizia dei download, opzioni generali (senza indirizzi, chiavi né password).", (ctx) => ({
     queueCleaner: () => fetchCleanuparrQueueCleaner(ctx),
