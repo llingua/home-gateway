@@ -123,7 +123,7 @@ describe("config_overseerr", () => {
 
   it("gli id dei server fuori formato non entrano mai nell'indirizzo delle richieste", async () => {
     const n = overseerrNet();
-    override(n, "https://overseerr.test/api/v1/settings/radarr", () => json([{ id: "0/../../x" }, { id: -1 }, { id: 1.5 }, { id: 5000 }, { id: 0 }]));
+    (n as any).handlers.unshift([/^https:\/\/overseerr\.test\/api\/v1\/settings\/radarr$/, () => json([{ id: "0/../../x" }, { id: -1 }, { id: 1.5 }, { id: 5000 }, { id: 0 }])]); // solo l'elenco, non i profili
     const { body } = await read("overseerr", n);
     expect(body.data.connections).toEqual([{ service: "radarr", id: 0, reachable: true, profiles: 2 }]);
     expect(n.calls.filter((c) => c.url.includes("/profiles")).map((c) => c.url)).toEqual(["https://overseerr.test/api/v1/settings/radarr/0/profiles"]);
