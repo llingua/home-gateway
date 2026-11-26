@@ -1,6 +1,6 @@
 # home-gateway
 
-Livello di integrazione di casa Belinchebon: **un'unica API** per interrogare Plex, Radarr, Sonarr, qBittorrent, Overseerr, Prowlarr, Bazarr (e, in futuro, altri servizi). Chi ha bisogno di un dato — la homepage, Home Assistant, un agente AI — chiama il gateway e non sa nulla dei servizi che ci sono dietro.
+Livello di integrazione di casa Belinchebon: **un'unica API** per interrogare Plex, Radarr, Sonarr, qBittorrent, Overseerr, Prowlarr, Bazarr, Proxmox (e, in futuro, altri servizi). Chi ha bisogno di un dato — la homepage, Home Assistant, un agente AI — chiama il gateway e non sa nulla dei servizi che ci sono dietro.
 
 È un Cloudflare Worker che gira sull'infrastruttura Cloudflare: nessun server da gestire.
 
@@ -39,6 +39,7 @@ Tutte le richieste sono `GET` e richiedono autenticazione (tranne `/healthz`, ch
 | `/v1/media/health` | Avvisi di salute Radarr/Sonarr | 2 min |
 | `/v1/media/indexers` | Indexer Prowlarr: totali, non attivi, avvisi | 2 min |
 | `/v1/media/subtitles` | Sottotitoli mancanti e problemi dei provider (Bazarr) | 5 min |
+| `/v1/media/proxmox` | Host Proxmox (CPU, RAM, uptime), guest, storage, ultimo backup | 30 s |
 
 Forma di una sezione:
 
@@ -65,7 +66,7 @@ Descrizione completa in [`openapi.yaml`](openapi.yaml). Gli errori hanno la form
 | `ACCESS_TEAM_DOMAIN` | Dominio del team Access (es. `llhome.cloudflareaccess.com`) |
 | `ACCESS_AUD` | AUD tag dell'app Access `home-gateway` (non segreto) |
 | `CLIENTS` | Clienti ammessi, come oggetto JSON (vedi sotto) |
-| `RADARR_URL`, `SONARR_URL`, `OVERSEERR_URL`, `PLEX_URL`, `PROWLARR_URL`, `BAZARR_URL`, `QBITTORRENT_URL` | Indirizzi dei servizi (hanno un valore predefinito) |
+| `RADARR_URL`, `SONARR_URL`, `OVERSEERR_URL`, `PLEX_URL`, `PROWLARR_URL`, `BAZARR_URL`, `PROXMOX_URL`, `QBITTORRENT_URL` | Indirizzi dei servizi (hanno un valore predefinito) |
 
 `CLIENTS` associa il **Client ID** del service token (o l'email) a un nome e ai permessi:
 
@@ -87,6 +88,7 @@ I Client ID non sono segreti.
 | `OVERSEERR_API_KEY` | Settings → General → API Key (accettato anche come `OVERSEER_API_KEY`) |
 | `PROWLARR_API_KEY` | Settings → General → API Key |
 | `BAZARR_API_KEY` | Settings → General → Security → API key |
+| `PROXMOX_API_TOKEN` | Token API di sola lettura, formato `utente@realm!nome=segreto`: vedi `docs/PROXMOX-TOKEN.md` |
 | `PLEX_TOKEN` | `X-Plex-Token` (Plex Web → ⋯ → Get Info → View XML) |
 | `QBT_USERNAME`, `QBT_PASSWORD` | Credenziali della Web UI di qBittorrent |
 

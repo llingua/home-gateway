@@ -5,6 +5,7 @@ import { fetchSubtitles } from "./services/bazarr";
 import { fetchLastAvailable, fetchRequests } from "./services/overseerr";
 import { fetchLibraries, fetchStreams } from "./services/plex";
 import { fetchIndexers } from "./services/prowlarr";
+import { fetchProxmox } from "./services/proxmox";
 import type { Ctx, SectionResult } from "./types";
 
 /**
@@ -167,6 +168,13 @@ export const SECTIONS: SectionDef[] = [
     scope: SCOPE,
     ttl: 300,
     load: (ctx) => single(() => fetchSubtitles(ctx)),
+  },
+  {
+    name: "proxmox",
+    description: "Host Proxmox (CPU, RAM, uptime), guest, spazio degli storage e ultimo backup.",
+    scope: SCOPE,
+    ttl: 30,
+    load: (ctx) => single(() => fetchProxmox(ctx)),
   },
 ];
 

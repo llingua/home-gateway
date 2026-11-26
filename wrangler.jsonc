@@ -22,6 +22,7 @@
     "PLEX_URL": "https://plex.belinchebon.com",
     "PROWLARR_URL": "https://prowlarr.belinchebon.com",
     "BAZARR_URL": "https://bazarr.belinchebon.com",
+    "PROXMOX_URL": "https://proxmox.belinchebon.com",
     "QBITTORRENT_URL": "https://qbt.belinchebon.com",
 
     // App Access "home-gateway" (gateway.belinchebon.com). L'AUD non è un segreto.

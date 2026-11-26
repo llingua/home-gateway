@@ -21,6 +21,9 @@ export interface Env {
   PROWLARR_API_KEY?: string;
   BAZARR_URL?: string;
   BAZARR_API_KEY?: string;
+  PROXMOX_URL?: string;
+  /** Token API di Proxmox, formato utente@realm!nome=segreto. Consigliato: utente dedicato con ruolo PVEAuditor. */
+  PROXMOX_API_TOKEN?: string;
   PLEX_URL?: string;
   PLEX_TOKEN?: string;
   QBITTORRENT_URL?: string;

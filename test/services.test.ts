@@ -5,6 +5,7 @@ import { fetchDownloads } from "../src/services/qbittorrent";
 import { fetchLastAvailable, fetchRequests } from "../src/services/overseerr";
 import { fetchSubtitles } from "../src/services/bazarr";
 import { fetchIndexers } from "../src/services/prowlarr";
+import { fetchProxmox } from "../src/services/proxmox";
 import { fetchLibraries, fetchStreams } from "../src/services/plex";
 import { baseEnv, FakeNet, healthyNet, makeKey } from "./helpers";
 
@@ -107,6 +108,59 @@ describe("Prowlarr", () => {
   it("senza chiave API risulta non configurato", async () => {
     const { ctx } = await ctxFor({ PROWLARR_API_KEY: undefined });
     await expect(fetchIndexers(ctx)).rejects.toBeInstanceOf(NotConfigured);
+  });
+});
+
+describe("Proxmox", () => {
+  it("riassume host, guest, storage e ultimo backup", async () => {
+    const { ctx } = await ctxFor();
+    const summary = await fetchProxmox(ctx);
+    expect(summary.node).toEqual({ name: "pve", online: true, cpuPct: 12, memPct: 38, uptimeSeconds: 86_400 });
+    expect(summary.guests).toEqual([
+      { vmid: 101, name: "windows11", type: "vm", running: false, cpuPct: 0, memPct: 0 },
+      { vmid: 103, name: "jarvis", type: "ct", running: true, cpuPct: 1, memPct: 10 },
+    ]);
+    expect(summary.storage).toEqual([
+      { name: "local-lvm", usedPct: 63, freeGb: 37 },
+      { name: "nas", usedPct: 50, freeGb: 0 },
+    ]);
+  });
+
+  it("ignora i modelli (template) e lo storage ripetuto per ogni nodo", async () => {
+    const { ctx } = await ctxFor();
+    const summary = await fetchProxmox(ctx);
+    expect(summary.guests.some((g) => g.name === "modello")).toBe(false);
+    expect(summary.storage.filter((s) => s.name === "nas")).toHaveLength(1);
+  });
+
+  it("l'ultimo backup è quello terminato più di recente; un backup ancora in corso non conta", async () => {
+    const { ctx } = await ctxFor();
+    expect((await fetchProxmox(ctx)).backup).toEqual({ lastAt: new Date(1_800_000_600 * 1000).toISOString(), ok: true, durationMin: 10 });
+  });
+
+  it("un backup finito male risulta ok=false", async () => {
+    const net = new FakeNet()
+      .json("https://pve.test/api2/json/nodes/pve/tasks", { data: [{ type: "vzdump", status: "job errors", starttime: 10, endtime: 70 }] })
+      .json("https://pve.test/api2/json/cluster/resources", { data: [{ type: "node", node: "pve", status: "online" }] });
+    expect((await fetchProxmox({ env: baseEnv(), fetch: net.fetch })).backup).toMatchObject({ ok: false, durationMin: 1 });
+  });
+
+  it("se la lettura dei backup non è permessa, il resto dello stato resta valido", async () => {
+    const net = new FakeNet()
+      .on("https://pve.test/api2/json/nodes", () => new Response("no", { status: 403 }))
+      .json("https://pve.test/api2/json/cluster/resources", { data: [{ type: "node", node: "pve", status: "online", cpu: 0.5 }] });
+    const summary = await fetchProxmox({ env: baseEnv(), fetch: net.fetch });
+    expect(summary.node?.cpuPct).toBe(50);
+    expect(summary.backup).toBeNull();
+  });
+
+  it("manda il token nell'intestazione Authorization e senza chiave risulta non configurato", async () => {
+    const { net, ctx } = await ctxFor();
+    await fetchProxmox(ctx);
+    const call = net.calls.find((c) => c.url.includes("/cluster/resources"))!;
+    expect(call.headers.get("authorization")).toBe("PVEAPIToken=gateway@pve!home=pve-secret-token");
+    const { ctx: noKey } = await ctxFor({ PROXMOX_API_TOKEN: undefined });
+    await expect(fetchProxmox(noKey)).rejects.toBeInstanceOf(NotConfigured);
   });
 });
 
