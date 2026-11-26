@@ -21,11 +21,11 @@ Livello di integrazione di casa Belinchebon: **un'unica API** per interrogare Pl
 
 ## API
 
-Tutte le richieste sono `GET` e richiedono autenticazione (tranne `/healthz`). Le risposte non vanno in cache lato cliente (`Cache-Control: no-store`): il gateway ha la sua cache per sezione.
+Tutte le richieste sono `GET` e richiedono autenticazione (tranne `/healthz`, che però sta comunque dietro Access). Le risposte non vanno in cache lato cliente (`Cache-Control: no-store`): il gateway ha la sua cache per sezione.
 
 | Percorso | Cosa restituisce | Cache |
 |---|---|---|
-| `/healthz` | `{ ok: true }`, senza autenticazione | – |
+| `/healthz` | `{ ok: true }`. Il Worker non chiede autenticazione, ma l'app Access davanti sì | – |
 | `/v1/capabilities` | Sezioni disponibili e quali sono permesse al cliente | – |
 | `/v1/media/overview` | Tutte le sezioni (o `?sections=streams,queue`) | per sezione |
 | `/v1/media/streams` | Riproduzioni Plex in corso | 15 s |
@@ -60,8 +60,8 @@ Descrizione completa in [`openapi.yaml`](openapi.yaml). Gli errori hanno la form
 | Nome | Significato |
 |---|---|
 | `ACCESS_TEAM_DOMAIN` | Dominio del team Access (es. `llhome.cloudflareaccess.com`) |
-| `ACCESS_AUD` | AUD tag dell'app Access del gateway — **da aggiungere** dopo averla creata |
-| `CLIENTS` | JSON dei clienti ammessi — **da aggiungere** (vedi sotto) |
+| `ACCESS_AUD` | AUD tag dell'app Access `home-gateway` (non segreto) |
+| `CLIENTS` | Clienti ammessi, come oggetto JSON (vedi sotto) |
 | `RADARR_URL`, `SONARR_URL`, `OVERSEERR_URL`, `PLEX_URL`, `QBITTORRENT_URL` | Indirizzi dei servizi (hanno un valore predefinito) |
 
 `CLIENTS` associa il **Client ID** del service token (o l'email) a un nome e ai permessi:

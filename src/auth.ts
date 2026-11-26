@@ -117,10 +117,10 @@ export async function verifyAccessJwt(token: string, options: VerifyOptions): Pr
   return claims;
 }
 
-export function parseClients(raw: string | undefined): Record<string, Client> {
+export function parseClients(raw: string | Record<string, Client> | undefined): Record<string, Client> {
   if (!raw) return {};
   try {
-    const parsed = JSON.parse(raw) as Record<string, Client>;
+    const parsed = (typeof raw === "string" ? JSON.parse(raw) : raw) as Record<string, Client>;
     const clients: Record<string, Client> = {};
     for (const [id, client] of Object.entries(parsed)) {
       if (client && typeof client.name === "string" && Array.isArray(client.scopes)) {

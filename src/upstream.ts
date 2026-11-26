@@ -13,7 +13,9 @@ const DEFAULT_URLS = {
 
 export type ServiceName = keyof typeof DEFAULT_URLS;
 
-const URL_VARS: Record<ServiceName, keyof Env> = {
+type UrlVar = "RADARR_URL" | "SONARR_URL" | "OVERSEERR_URL" | "PLEX_URL" | "QBITTORRENT_URL";
+
+const URL_VARS: Record<ServiceName, UrlVar> = {
   radarr: "RADARR_URL",
   sonarr: "SONARR_URL",
   overseerr: "OVERSEERR_URL",

@@ -46,4 +46,6 @@ Dopo ogni modifica alla sicurezza (`auth.ts`, controllo permessi, `upstream.ts`)
 
 ## Stato
 
-v0.1.0: codice, test e documentazione pronti; **non ancora distribuito**. Mancano: service token, app Access per `gateway.belinchebon.com`, `ACCESS_AUD`, `CLIENTS`, segreti dei servizi, deploy (vedi `docs/PRIMO-DEPLOY.md`). Adapter ancora da fare: Prowlarr, Bazarr.
+v0.1.0: codice, test e documentazione pronti; **non ancora distribuito**. Fatti su Cloudflare: service token `gateway-upstream` e `client-homepage`, policy, app Access `home-gateway`, `ACCESS_AUD` e `CLIENTS` in `wrangler.jsonc`. Mancano: collegamento del repository (Workers Builds), segreti del Worker, primo deploy (vedi `docs/PRIMO-DEPLOY.md`). Adapter ancora da fare: Prowlarr, Bazarr.
+
+CI: `npm ci` richiede `@types/node` esplicito nelle dipendenze (altrimenti il lockfile risulta incoerente su GitHub).

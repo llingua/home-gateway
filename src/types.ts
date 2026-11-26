@@ -3,7 +3,7 @@ export interface Env {
   // Autenticazione dei clienti (Cloudflare Access)
   ACCESS_TEAM_DOMAIN?: string; // es. llhome.cloudflareaccess.com
   ACCESS_AUD?: string; // AUD tag dell'app Access del gateway
-  CLIENTS?: string; // JSON: { "<client_id | email>": { "name": "...", "scopes": ["media:read"] } }
+  CLIENTS?: string | Record<string, Client>; // { "<client_id | email>": { "name": "...", "scopes": ["media:read"] } }
 
   // Token di servizio con cui il gateway entra nei servizi (anch'essi dietro Access)
   CF_ACCESS_CLIENT_ID?: string;

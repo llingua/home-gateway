@@ -72,6 +72,11 @@ describe("parseClients / hasScope", () => {
     expect(Object.keys(clients)).toEqual(["a@b.it"]);
   });
 
+  it("accetta anche un oggetto già pronto (come nelle variabili di wrangler.jsonc)", () => {
+    const clients = parseClients({ "Abc.access": { name: "homepage", scopes: ["media:read"] } });
+    expect(clients["abc.access"]).toEqual({ name: "homepage", scopes: ["media:read"] });
+  });
+
   it("restituisce un elenco vuoto se il JSON non è valido", () => {
     expect(parseClients("{non json")).toEqual({});
     expect(parseClients(undefined)).toEqual({});

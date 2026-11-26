@@ -20,7 +20,14 @@
     "SONARR_URL": "https://sonarr.belinchebon.com",
     "OVERSEERR_URL": "https://overseerr.belinchebon.com",
     "PLEX_URL": "https://plex.belinchebon.com",
-    "QBITTORRENT_URL": "https://qbt.belinchebon.com"
-    // ACCESS_AUD e CLIENTS si aggiungono dopo aver creato l'app Access del gateway.
+    "QBITTORRENT_URL": "https://qbt.belinchebon.com",
+
+    // App Access "home-gateway" (gateway.belinchebon.com). L'AUD non è un segreto.
+    "ACCESS_AUD": "7a14b721580364e4b5f397b8f971367c83bec4d1376257e391b2a51ec4b117ff",
+
+    // Clienti ammessi: Client ID del service token (non segreto) -> nome e permessi.
+    "CLIENTS": {
+      "c5d8112ae945f36d8e60548d2ed19115.access": { "name": "homepage", "scopes": ["media:read"] }
+    }
   }
 }
