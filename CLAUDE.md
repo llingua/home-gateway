@@ -46,7 +46,7 @@ Dopo ogni modifica alla sicurezza (`auth.ts`, controllo permessi, `upstream.ts`)
 
 ## Stato
 
-In produzione su `gateway.belinchebon.com` (Cloudflare Workers Builds: ogni merge su `main` rilascia da solo con `npx wrangler deploy`). Dietro l'app Access `home-gateway`; unico cliente oggi: `client-homepage` (homepage). Il gateway entra nei servizi con il token `gateway-upstream` (policy "Gateway upstream" sulle loro app Access).
+In produzione su `gateway.belinchebon.com` (Cloudflare Workers Builds: ogni merge su `main` rilascia da solo con `npx wrangler deploy`). Dietro l'app Access `home-gateway`; clienti: `client-homepage` (homepage) e `client-home-assistant` (Home Assistant, sola lettura, collegato ma ancora senza sensori attivi: vedi `docs/CLIENT-HOME-ASSISTANT.md`). Il gateway entra nei servizi con il token `gateway-upstream` (policy "Gateway upstream" sulle loro app Access).
 
 - **Build di anteprima disattivate** (`previews_enabled: false` nelle impostazioni Workers Builds): su un Worker nuovo Cloudflare userebbe `wrangler preview`, che richiede un blocco `previews` e crea URL pubblici. Se si riattivano, aggiungere `"previews": {}` a `wrangler.jsonc` e proteggere gli URL con Access.
 - I segreti dei servizi li imposta l'utente dalla dashboard (Settings → Variables and Secrets). `OVERSEER_API_KEY` (una R) è accettato come alias di `OVERSEERR_API_KEY`.

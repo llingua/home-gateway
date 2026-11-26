@@ -29,7 +29,8 @@
 
     // Clienti ammessi: Client ID del service token (non segreto) -> nome e permessi.
     "CLIENTS": {
-      "c5d8112ae945f36d8e60548d2ed19115.access": { "name": "homepage", "scopes": ["media:read"] }
+      "c5d8112ae945f36d8e60548d2ed19115.access": { "name": "homepage", "scopes": ["media:read"] },
+      "2640e35f111605780c691bd032f63271.access": { "name": "home-assistant", "scopes": ["media:read"] }
     }
   }
 }
