@@ -105,6 +105,8 @@ export const baseEnv = (extra: Partial<Env> = {}): Env => ({
   OVERSEERR_API_KEY: "seerr-key",
   PROWLARR_URL: "https://prowlarr.test",
   PROWLARR_API_KEY: "prowlarr-key",
+  BAZARR_URL: "https://bazarr.test",
+  BAZARR_API_KEY: "bazarr-key",
   PLEX_URL: "https://plex.test",
   PLEX_TOKEN: "plex-token",
   QBITTORRENT_URL: "https://qbt.test",
@@ -181,6 +183,7 @@ export function healthyNet(key: TestKey): FakeNet {
   });
   net.json("https://overseerr.test/api/v1/movie/11", { title: "Ti presento i Fotter" });
   net.json("https://overseerr.test/api/v1/issue/count", { total: 5, open: 1, closed: 4 });
+  net.json("https://bazarr.test/api/badges", { movies: 2, episodes: 5, providers: 1, status: 0, announcements: 3 });
   net.json("https://prowlarr.test/api/v1/indexerstatus", [
     { indexerId: 2, disabledTill: "2099-01-01T00:00:00Z" },
     { indexerId: 3, disabledTill: "2000-01-01T00:00:00Z" },

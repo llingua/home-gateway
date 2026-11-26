@@ -3,6 +3,7 @@ import { NotConfigured, UpstreamError } from "../src/errors";
 import { fetchDiskSpace, fetchHealth, fetchQueue, fetchUpcoming, fetchWantedCount } from "../src/services/arr";
 import { fetchDownloads } from "../src/services/qbittorrent";
 import { fetchLastAvailable, fetchRequests } from "../src/services/overseerr";
+import { fetchSubtitles } from "../src/services/bazarr";
 import { fetchIndexers } from "../src/services/prowlarr";
 import { fetchLibraries, fetchStreams } from "../src/services/plex";
 import { baseEnv, FakeNet, healthyNet, makeKey } from "./helpers";
@@ -106,6 +107,20 @@ describe("Prowlarr", () => {
   it("senza chiave API risulta non configurato", async () => {
     const { ctx } = await ctxFor({ PROWLARR_API_KEY: undefined });
     await expect(fetchIndexers(ctx)).rejects.toBeInstanceOf(NotConfigured);
+  });
+});
+
+describe("Bazarr", () => {
+  it("restituisce i contatori dei sottotitoli mancanti e dei problemi, con la chiave nell'intestazione giusta", async () => {
+    const { net, ctx } = await ctxFor();
+    expect(await fetchSubtitles(ctx)).toEqual({ missingMovies: 2, missingEpisodes: 5, providerIssues: 1, healthIssues: 0 });
+    const call = net.calls.find((c) => c.url.startsWith("https://bazarr.test/api/badges"))!;
+    expect(call.headers.get("x-api-key")).toBe("bazarr-key");
+  });
+
+  it("senza chiave API risulta non configurato", async () => {
+    const { ctx } = await ctxFor({ BAZARR_API_KEY: undefined });
+    await expect(fetchSubtitles(ctx)).rejects.toBeInstanceOf(NotConfigured);
   });
 });
 

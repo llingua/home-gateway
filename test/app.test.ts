@@ -55,7 +55,7 @@ describe("capacità", () => {
     const res = await handle(await authedRequest(key, "/v1/capabilities"), baseEnv(), { fetch: healthyNet(key).fetch, now: NOW });
     const body = (await res.json()) as { client: string; sections: Array<{ name: string; allowed: boolean }> };
     expect(body.client).toBe("homepage");
-    expect(body.sections.map((s) => s.name)).toEqual(["streams", "downloads", "requests", "recent", "queue", "upcoming", "library", "storage", "health", "indexers"]);
+    expect(body.sections.map((s) => s.name)).toEqual(["streams", "downloads", "requests", "recent", "queue", "upcoming", "library", "storage", "health", "indexers", "subtitles"]);
     expect(body.sections.every((s) => s.allowed)).toBe(true);
   });
 });
@@ -65,7 +65,7 @@ describe("overview", () => {
     const res = await handle(await authedRequest(key, "/v1/media/overview"), baseEnv(), { fetch: healthyNet(key).fetch, now: NOW });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { generatedAt: string; sections: Record<string, { status: string; data?: any }> };
-    expect(Object.keys(body.sections)).toHaveLength(10);
+    expect(Object.keys(body.sections)).toHaveLength(11);
     expect(Object.values(body.sections).every((s) => s.status === "ok")).toBe(true);
     expect(body.sections.downloads!.data.downloadMBs).toBe(12.4);
     expect(body.sections.queue!.data.movies.total).toBe(1);
@@ -75,7 +75,7 @@ describe("overview", () => {
   it("non mostra mai utenti, indirizzi, chiavi o token", async () => {
     const res = await handle(await authedRequest(key, "/v1/media/overview"), baseEnv(), { fetch: healthyNet(key).fetch, now: NOW });
     const text = await res.text();
-    for (const secret of ["mario.rossi", "segreto@example.com", "192.168", "radarr-key", "sonarr-key", "seerr-key", "plex-token", "prowlarr-key", "gw-secret", "pass", "abc123"]) {
+    for (const secret of ["mario.rossi", "segreto@example.com", "192.168", "radarr-key", "sonarr-key", "seerr-key", "plex-token", "prowlarr-key", "bazarr-key", "gw-secret", "pass", "abc123"]) {
       expect(text).not.toContain(secret);
     }
   });

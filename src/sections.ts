@@ -1,6 +1,7 @@
 import { NotConfigured, UpstreamError } from "./errors";
 import { fetchDiskSpace, fetchHealth, fetchQueue, fetchUpcoming, fetchWantedCount } from "./services/arr";
 import { fetchDownloads } from "./services/qbittorrent";
+import { fetchSubtitles } from "./services/bazarr";
 import { fetchLastAvailable, fetchRequests } from "./services/overseerr";
 import { fetchLibraries, fetchStreams } from "./services/plex";
 import { fetchIndexers } from "./services/prowlarr";
@@ -159,6 +160,13 @@ export const SECTIONS: SectionDef[] = [
     scope: SCOPE,
     ttl: 120,
     load: (ctx) => single(() => fetchIndexers(ctx)),
+  },
+  {
+    name: "subtitles",
+    description: "Sottotitoli mancanti e problemi dei provider (Bazarr).",
+    scope: SCOPE,
+    ttl: 300,
+    load: (ctx) => single(() => fetchSubtitles(ctx)),
   },
 ];
 

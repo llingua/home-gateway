@@ -4,7 +4,7 @@ Guida per Claude Code in questo repository. Tienila aggiornata: ogni modifica a 
 
 ## Cos'è
 
-`home-gateway` è il livello di integrazione di casa Belinchebon: un Cloudflare Worker (TypeScript, senza framework) che espone un'unica API in sola lettura per Plex, Radarr, Sonarr, qBittorrent, Overseerr, Prowlarr. I clienti previsti: la homepage (`llingua/HomepageBelinchebon`), Home Assistant (`llingua/homeassistant-config`), agenti AI.
+`home-gateway` è il livello di integrazione di casa Belinchebon: un Cloudflare Worker (TypeScript, senza framework) che espone un'unica API in sola lettura per Plex, Radarr, Sonarr, qBittorrent, Overseerr, Prowlarr, Bazarr. I clienti previsti: la homepage (`llingua/HomepageBelinchebon`), Home Assistant (`llingua/homeassistant-config`), agenti AI.
 
 Divisione dei compiti: **Home Assistant** fa i controlli di disponibilità dalla rete locale (online/offline) e **non** dipende da questo gateway per le cose critiche; il gateway fornisce i **dettagli** (stream, code, richieste...) interrogando le API dei servizi.
 
@@ -15,8 +15,8 @@ Divisione dei compiti: **Home Assistant** fa i controlli di disponibilità dalla
 | `src/index.ts` | Punto d'ingresso del Worker (collega `fetch` e Cache API a `handle`) |
 | `src/app.ts` | Router, autenticazione, controllo permessi, risposte JSON |
 | `src/auth.ts` | Verifica del JWT di Cloudflare Access (RS256, iss, aud, exp), elenco clienti (`CLIENTS`), permessi |
-| `src/sections.ts` | Le "capacità" esposte (streams, downloads, requests, recent, queue, upcoming, library, storage, health, indexers): ognuna con permesso, cache e funzione di caricamento |
-| `src/services/*.ts` | Adapter: `arr.ts` (Radarr/Sonarr, API v3 condivisa), `plex.ts`, `qbittorrent.ts`, `overseerr.ts`, `prowlarr.ts` |
+| `src/sections.ts` | Le "capacità" esposte (streams, downloads, requests, recent, queue, upcoming, library, storage, health, indexers, subtitles): ognuna con permesso, cache e funzione di caricamento |
+| `src/services/*.ts` | Adapter: `arr.ts` (Radarr/Sonarr, API v3 condivisa), `plex.ts`, `qbittorrent.ts`, `overseerr.ts`, `prowlarr.ts`, `bazarr.ts` |
 | `src/upstream.ts` | Chiamate ai servizi: credenziali Access, timeout, niente redirect, errori con messaggi statici |
 | `src/cache.ts` | Cache per sezione (solo risultati `ok`) |
 | `test/` | Vitest; finto "internet" (`FakeNet`) e JWT firmati con chiave di prova |
@@ -51,5 +51,5 @@ In produzione su `gateway.belinchebon.com` (Cloudflare Workers Builds: ogni merg
 - **Build di anteprima disattivate** (`previews_enabled: false` nelle impostazioni Workers Builds): su un Worker nuovo Cloudflare userebbe `wrangler preview`, che richiede un blocco `previews` e crea URL pubblici. Se si riattivano, aggiungere `"previews": {}` a `wrangler.jsonc` e proteggere gli URL con Access.
 - I segreti dei servizi li imposta l'utente dalla dashboard (Settings → Variables and Secrets). `OVERSEER_API_KEY` (una R) è accettato come alias di `OVERSEERR_API_KEY`.
 - Nuovo cliente = un service token in Access, una riga in `CLIENTS` (`wrangler.jsonc`) e il token nella policy "Gateway clients" dell'app `home-gateway`. Guida per Home Assistant: `docs/CLIENT-HOME-ASSISTANT.md`.
-- Adapter ancora da fare: Bazarr.
+- Servizi collegati: Plex, Radarr, Sonarr, qBittorrent, Overseerr, Prowlarr, Bazarr. Prima di aggiungerne altri si decide con l'utente quali dati servono davvero (candidati: Proxmox, Home Assistant, Synology, Jarvis).
 - CI: `npm ci` richiede `@types/node` esplicito nelle dipendenze (altrimenti il lockfile risulta incoerente su GitHub).
