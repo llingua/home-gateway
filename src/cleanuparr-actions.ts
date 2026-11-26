@@ -326,6 +326,9 @@ export const cleanuparrSeedingRuleUpdate: ActionDef = {
     const rule = (await listRules(ctx, input.clientId as string)).find((candidate) => String(candidate.id).toLowerCase() === input.ruleId);
     if (!rule) throw new WriteError("not_found", "Regola non trovata per questo client");
     const wanted = input.changes as Record<string, unknown>;
+    if ("action" in wanted && (rule.action === undefined || rule.action === null)) {
+      throw new WriteError("not_supported", "Questa versione di Cleanuparr non riporta l'azione (action) delle regole: non si può cambiare né verificare da qui");
+    }
     const changes: PlanChange[] = [];
     const before: Record<string, unknown> = {};
     for (const field of RULE_FIELDS) {
@@ -455,6 +458,8 @@ export const cleanuparrSeedingRuleCreate: ActionDef = {
     const created = (await listRules(ctx, clientId)).find((candidate) => String(candidate.name).toLowerCase() === String(rule.name).toLowerCase());
     if (!created) throw new Error("Verifica fallita: Cleanuparr non mostra la nuova regola");
     for (const field of ["privacyType", "maxRatio", "minSeedTime", "maxSeedTime", "deleteSourceFiles", "action"] as const) {
+      // Alcune versioni di Cleanuparr non riportano `action` nelle regole: non si può verificare ciò che non si vede.
+      if (field === "action" && (created.action === undefined || created.action === null)) continue;
       const expected = ruleBody(rule)[field];
       if (created[field] !== expected) throw new Error(`Verifica fallita: ${field} non corrisponde`);
     }

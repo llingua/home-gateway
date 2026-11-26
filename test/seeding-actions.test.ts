@@ -13,6 +13,7 @@ interface State {
   posts: Array<{ url: string; body: any }>;
   ignoreWrites: boolean;
   corruptOthers: boolean;
+  hideAction: boolean;
   indexer: Record<string, any>;
   indexerPuts: Array<{ url: string; body: any }>;
 }
@@ -24,7 +25,7 @@ const fresh = (): State => ({
     { id: RULE1, name: "Tutte le categorie", categories: ["tv", "anime", "movies"], trackerPatterns: [], tagsAny: ["x"], tagsAll: [], priority: 1, privacyType: "Both", maxRatio: 2, minSeedTime: 48, maxSeedTime: 168, minSeeders: 0, maxInactiveDays: -1, deleteSourceFiles: true, action: "Delete" },
     { id: RULE2, name: "Unlinked Cleanup", categories: ["cleanuparr-unlinked"], trackerPatterns: [], tagsAny: [], tagsAll: [], priority: 2, privacyType: "Both", maxRatio: -1, minSeedTime: 0, maxSeedTime: 24, minSeeders: 0, maxInactiveDays: -1, deleteSourceFiles: false, action: "Delete" },
   ],
-  puts: [], posts: [], ignoreWrites: false, corruptOthers: false,
+  puts: [], posts: [], ignoreWrites: false, corruptOthers: false, hideAction: false,
   indexer: {
     id: 9, name: "FutureTorrent", enable: true,
     fields: [SECRET, { name: "baseUrl", value: "http://192.168.0.9/" }, { name: "torrentBaseSettings.seedRatio", value: null }, { name: "torrentBaseSettings.seedTime", value: 60 }, { name: "torrentBaseSettings.packSeedTime", value: 120 }],
@@ -55,7 +56,7 @@ function net(state: State, key: Awaited<ReturnType<typeof makeKey>>): FakeNet {
       if (!state.ignoreWrites) state.rules.push(rule);
       return json(rule, 201);
     }
-    return json(state.rules);
+    return json(state.hideAction ? state.rules.map(({ action: _a, ...rest }) => rest) : state.rules);
   });
   n.on(/^https:\/\/cleanuparr\.test\/api\/seeding-rules\/[0-9a-f-]{36}$/, async (req) => {
     const id = /([0-9a-f-]{36})$/.exec(req.url)![1]!;
@@ -157,6 +158,12 @@ describe("cleanuparr_seeding_rule_update", () => {
     await expect(propose(ctx, writer, "cleanuparr_seeding_rule_update", { clientId: CLIENT, ruleId: RULE2, changes: { maxSeedTime: 0 } })).rejects.toMatchObject({ code: "invalid_input", message: expect.stringContaining("maxSeedTime") });
   });
 
+  it("se la versione di Cleanuparr non riporta action, cambiarla è rifiutato (non verificabile)", async () => {
+    state.hideAction = true;
+    await expect(propose(ctx, writer, "cleanuparr_seeding_rule_update", { clientId: CLIENT, ruleId: RULE1, changes: { action: "Stop" } })).rejects.toMatchObject({ code: "not_supported" });
+    expect((await propose(ctx, writer, "cleanuparr_seeding_rule_update", { clientId: CLIENT, ruleId: RULE1, changes: { maxRatio: 3 } })).status).toBe("pending");
+  });
+
   it("un campo non modificabile accanto a uno valido blocca tutta la richiesta", async () => {
     for (const extra of [{ name: "x" }, { categories: ["tv"] }, { priority: 1 }, { trackerPatterns: ["a.it"] }]) {
       await expect(propose(ctx, writer, "cleanuparr_seeding_rule_update", { clientId: CLIENT, ruleId: RULE1, changes: { maxRatio: 3, ...extra } })).rejects.toMatchObject({ code: "invalid_input", message: expect.stringContaining("non modificabili") });
@@ -245,6 +252,22 @@ describe("cleanuparr_seeding_rule_create", () => {
     await approve(failed.planId);
     await expect(applyPlan(ctx, writer, failed.planId)).rejects.toThrow("Verifica fallita");
     expect((await getPlanView(ctx, failed.planId)).status).toBe("failed");
+  });
+
+  it("se la versione di Cleanuparr non riporta action, la creazione riesce lo stesso e viene verificata sul resto", async () => {
+    state.hideAction = true;
+    const { result } = await run("cleanuparr_seeding_rule_create", { clientId: CLIENT, rule });
+    expect(result.status).toBe("applied");
+    expect(state.rules[2]).toMatchObject({ name: "Privati", privacyType: "Private", maxSeedTime: 336 });
+  });
+
+  it("anche senza action riportata, un valore sbagliato negli altri campi fa fallire la verifica", async () => {
+    state.hideAction = true;
+    const plan = await propose(ctx, writer, "cleanuparr_seeding_rule_create", { clientId: CLIENT, rule: { ...rule, name: "Privati 3" } });
+    await approve(plan.planId);
+    // il finto server qui non altera la creazione: si simula un valore diverso cambiando la regola creata dopo la POST
+    state.rules.push = ((...items: any[]) => Array.prototype.push.call(state.rules, ...items.map((i) => ({ ...i, maxSeedTime: 5 })))) as any;
+    await expect(applyPlan(ctx, writer, plan.planId)).rejects.toThrow("Verifica fallita");
   });
 
   it("non si può annullare con una proposta (la creazione non ha un annullo automatico)", async () => {
