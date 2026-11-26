@@ -15,7 +15,7 @@ export interface RequestsSummary {
 
 /** Contatori di richieste e problemi. Nessun nome utente né email. */
 export async function fetchRequests(ctx: Ctx): Promise<RequestsSummary> {
-  const key = requireSecret(ctx.env.OVERSEERR_API_KEY, "overseerr");
+  const key = requireSecret(ctx.env.OVERSEERR_API_KEY ?? ctx.env.OVERSEER_API_KEY, "overseerr");
   const base = baseUrl(ctx.env, "overseerr");
   const headers = { "X-Api-Key": key };
 

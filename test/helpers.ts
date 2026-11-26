@@ -103,6 +103,8 @@ export const baseEnv = (extra: Partial<Env> = {}): Env => ({
   SONARR_API_KEY: "sonarr-key",
   OVERSEERR_URL: "https://overseerr.test",
   OVERSEERR_API_KEY: "seerr-key",
+  PROWLARR_URL: "https://prowlarr.test",
+  PROWLARR_API_KEY: "prowlarr-key",
   PLEX_URL: "https://plex.test",
   PLEX_TOKEN: "plex-token",
   QBITTORRENT_URL: "https://qbt.test",
@@ -175,6 +177,17 @@ export function healthyNet(key: TestKey): FakeNet {
 
   net.json("https://overseerr.test/api/v1/request/count", { total: 40, movie: 30, tv: 10, pending: 2, approved: 1, declined: 3, processing: 34, available: 20 });
   net.json("https://overseerr.test/api/v1/issue/count", { total: 5, open: 1, closed: 4 });
+  net.json("https://prowlarr.test/api/v1/indexerstatus", [
+    { indexerId: 2, disabledTill: "2099-01-01T00:00:00Z" },
+    { indexerId: 3, disabledTill: "2000-01-01T00:00:00Z" },
+  ]);
+  net.json("https://prowlarr.test/api/v1/indexer", [
+    { id: 1, enable: true },
+    { id: 2, enable: true },
+    { id: 3, enable: true },
+    { id: 4, enable: false },
+  ]);
+  net.json("https://prowlarr.test/api/v1/health", [{ type: "warning", message: "Indexer non disponibili: X" }, { type: "ok", message: "" }]);
   return net;
 }
 

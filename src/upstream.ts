@@ -8,18 +8,20 @@ const DEFAULT_URLS = {
   sonarr: "https://sonarr.belinchebon.com",
   overseerr: "https://overseerr.belinchebon.com",
   plex: "https://plex.belinchebon.com",
+  prowlarr: "https://prowlarr.belinchebon.com",
   qbittorrent: "https://qbt.belinchebon.com",
 } as const;
 
 export type ServiceName = keyof typeof DEFAULT_URLS;
 
-type UrlVar = "RADARR_URL" | "SONARR_URL" | "OVERSEERR_URL" | "PLEX_URL" | "QBITTORRENT_URL";
+type UrlVar = "RADARR_URL" | "SONARR_URL" | "OVERSEERR_URL" | "PLEX_URL" | "PROWLARR_URL" | "QBITTORRENT_URL";
 
 const URL_VARS: Record<ServiceName, UrlVar> = {
   radarr: "RADARR_URL",
   sonarr: "SONARR_URL",
   overseerr: "OVERSEERR_URL",
   plex: "PLEX_URL",
+  prowlarr: "PROWLARR_URL",
   qbittorrent: "QBITTORRENT_URL",
 };
 

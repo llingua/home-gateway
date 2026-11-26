@@ -3,6 +3,7 @@ import { NotConfigured, UpstreamError } from "../src/errors";
 import { fetchDiskSpace, fetchHealth, fetchQueue, fetchUpcoming, fetchWantedCount } from "../src/services/arr";
 import { fetchDownloads } from "../src/services/qbittorrent";
 import { fetchRequests } from "../src/services/overseerr";
+import { fetchIndexers } from "../src/services/prowlarr";
 import { fetchLibraries, fetchStreams } from "../src/services/plex";
 import { baseEnv, FakeNet, healthyNet, makeKey } from "./helpers";
 
@@ -92,7 +93,28 @@ describe("qBittorrent", () => {
   });
 });
 
+describe("Prowlarr", () => {
+  it("conta gli indexer e quelli non attivi (spenti o sospesi), ignorando le sospensioni scadute", async () => {
+    const { ctx } = await ctxFor();
+    expect(await fetchIndexers(ctx)).toEqual({
+      total: 4,
+      disabled: 2, // il 4 è spento dall'utente, il 2 è sospeso fino al 2099; il 3 era sospeso ma la sospensione è finita
+      issues: [{ level: "warning", message: "Indexer non disponibili: X" }],
+    });
+  });
+
+  it("senza chiave API risulta non configurato", async () => {
+    const { ctx } = await ctxFor({ PROWLARR_API_KEY: undefined });
+    await expect(fetchIndexers(ctx)).rejects.toBeInstanceOf(NotConfigured);
+  });
+});
+
 describe("Overseerr", () => {
+  it("accetta anche il nome del segreto scritto con una R sola (OVERSEER_API_KEY)", async () => {
+    const { ctx } = await ctxFor({ OVERSEERR_API_KEY: undefined, OVERSEER_API_KEY: "seerr-key" });
+    expect((await fetchRequests(ctx)).pending).toBe(2);
+  });
+
   it("restituisce solo contatori", async () => {
     const { ctx } = await ctxFor();
     expect(await fetchRequests(ctx)).toEqual({
