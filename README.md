@@ -44,6 +44,8 @@ Tutte le richieste sono `GET` e richiedono autenticazione (tranne `/healthz`, ch
 | `/v1/config/radarr`, `/v1/config/sonarr` | Profili di qualità, formati personalizzati, cartelle, client di download, indexer, naming, ritardi, tag | 1 min |
 | `/v1/config/prowlarr` | Indexer, applicazioni collegate, profili, client di download | 1 min |
 | `/v1/config/cleanuparr` | Regole di pulizia coda (stallo, lentezza, importazioni fallite), blocco malware, pulizia dei download, opzioni generali (senza indirizzi né chiavi) | 1 min |
+| `/v1/config/bazarr`, `/v1/config/overseerr`, `/v1/config/plex` | Opzioni di funzionamento, profili, server collegati, librerie, trascodifica (senza chiavi, utenti né indirizzi) | 1 min |
+| `/v1/config/proxmox` | Nodo, guest (risorse, avvio, dischi), backup pianificati, storage, salute dei dischi: **sola lettura**, Proxmox non si modifica dal gateway | 1 min |
 | `/v1/config/qbittorrent` | Percorsi, code, limiti, rapporto di condivisione, categorie | 1 min |
 
 ### Permessi e audit delle configurazioni

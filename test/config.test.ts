@@ -115,7 +115,7 @@ describe("sezioni di configurazione: nessuna fuga di segreti", () => {
     const { response } = await get("/v1/config/overview", AGENT());
     expect(response.status).toBe(200);
     const text = await response.text();
-    expect(Object.keys(JSON.parse(text).sections)).toEqual(["config_radarr", "config_sonarr", "config_prowlarr", "config_qbittorrent", "config_cleanuparr"]);
+    expect(Object.keys(JSON.parse(text).sections)).toEqual(["config_radarr", "config_sonarr", "config_prowlarr", "config_qbittorrent", "config_bazarr", "config_overseerr", "config_plex", "config_proxmox", "config_cleanuparr"]);
     for (const secret of LEAKS) expect(text, `trapelato: ${secret}`).not.toContain(secret);
   });
 
@@ -196,10 +196,10 @@ describe("MCP e configurazione", () => {
     expect(names.some((n) => n.startsWith("config_"))).toBe(false);
   });
 
-  it("get_config_overview per l'agente: 5 sezioni, nessun segreto", async () => {
+  it("get_config_overview per l'agente: 9 sezioni, nessun segreto", async () => {
     const { json } = await rpc(AGENT(), "tools/call", { name: "get_config_overview", arguments: {} });
     const text = json.result.content[0].text;
-    expect(Object.keys(JSON.parse(text).sections)).toHaveLength(5);
+    expect(Object.keys(JSON.parse(text).sections)).toHaveLength(9);
     for (const secret of LEAKS) expect(text, `trapelato: ${secret}`).not.toContain(secret);
   });
 });
