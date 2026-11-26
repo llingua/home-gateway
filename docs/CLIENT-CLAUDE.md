@@ -50,7 +50,12 @@ Note pratiche:
 - Dopo il salvataggio può servire fino a un minuto prima che le richieste passino.
 - Se il Client Secret si perde, si rigenera in Zero Trust → Access → Service Auth → `client-agent`, e si salva di nuovo.
 
-**Chat dell'app Claude e telefono (connettori di claude.ai):** usano OAuth e non permettono intestazioni fisse, quindi con questa autenticazione **non si collegano ancora**. Serve aggiungere OAuth al gateway (Cloudflare Access come provider di accesso, un hostname pubblico dedicato e una schermata di consenso): è un progetto a parte, da progettare con cura perché è la parte più delicata dal punto di vista della sicurezza.
+**App Claude (web, telefono, desktop) – connettore con OAuth:** indirizzo `https://mcp.belinchebon.com/mcp`.
+1. Impostazioni → Connettori → Aggiungi connettore personalizzato, URL `https://mcp.belinchebon.com/mcp`, senza altri campi.
+2. Si apre il login di Cloudflare Access: inserisci la tua email e il codice ricevuto. Solo le email dell'app Access `home-gateway mcp (OAuth)` entrano.
+3. Il connettore ha gli stessi strumenti dell'agente (lettura, proposte, `apply_plan`). Le modifiche richiedono comunque l'approvazione su `/approve` di `gateway.belinchebon.com`.
+
+Come funziona: `mcp.belinchebon.com` è un'app Access con *Managed OAuth* (Access fa da server OAuth, con registrazione automatica del client, consentita solo per i callback di claude.ai). Il Worker accetta il JWT di quell'app (`ACCESS_AUD_OAUTH`), pretende l'**email** e la cerca tra i clienti (`CLIENTS`) o tra gli `APPROVERS`; questi ultimi ottengono `media:read`, `config:read` e `config:write`. I token di servizio non entrano da qui. L'accesso dura 24 ore, poi si rifà il login.
 
 ## 3. Cosa chiedere
 

@@ -151,16 +151,33 @@ export async function authenticate(request: Request, env: Env, deps: AuthDeps): 
   const token = request.headers.get("Cf-Access-Jwt-Assertion");
   if (!token) throw new HttpError(401, "missing_token", "Autenticazione richiesta");
 
+  const verify = (aud: string) => verifyAccessJwt(token, { teamDomain: env.ACCESS_TEAM_DOMAIN!, aud, fetch: deps.fetch, now: deps.now });
+
   let claims: AccessClaims;
+  let viaOAuth = false;
   try {
-    claims = await verifyAccessJwt(token, {
-      teamDomain: env.ACCESS_TEAM_DOMAIN,
-      aud: env.ACCESS_AUD,
-      fetch: deps.fetch,
-      now: deps.now,
-    });
+    claims = await verify(env.ACCESS_AUD);
   } catch {
-    throw new HttpError(401, "invalid_token", "Token non valido");
+    // Secondo ingresso: l'app Access con Managed OAuth (una persona che entra da un'app come Claude).
+    if (!env.ACCESS_AUD_OAUTH) throw new HttpError(401, "invalid_token", "Token non valido");
+    try {
+      claims = await verify(env.ACCESS_AUD_OAUTH);
+      viaOAuth = true;
+    } catch {
+      throw new HttpError(401, "invalid_token", "Token non valido");
+    }
+  }
+
+  if (viaOAuth) {
+    // Solo persone (serve l'email; un token di servizio non entra da qui) e solo chi è già nell'elenco
+    // degli approvatori o tra i clienti con quell'email. Le scritture restano comunque da approvare in /approve.
+    const email = claims.email?.toLowerCase();
+    if (!email) throw new HttpError(403, "unknown_client", "Cliente non autorizzato");
+    const listed = parseClients(env.CLIENTS)[email];
+    if (listed) return listed;
+    const approvers = (env.APPROVERS ?? "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
+    if (approvers.includes(email)) return { name: "app-claude", scopes: ["media:read", "config:read", "config:write"] };
+    throw new HttpError(403, "unknown_client", "Cliente non autorizzato");
   }
 
   const identity = (claims.common_name ?? claims.email)?.toLowerCase();

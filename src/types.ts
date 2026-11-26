@@ -3,7 +3,14 @@ export interface Env {
   // Autenticazione dei clienti (Cloudflare Access)
   ACCESS_TEAM_DOMAIN?: string; // es. llhome.cloudflareaccess.com
   ACCESS_AUD?: string; // AUD tag dell'app Access del gateway
-  CLIENTS?: string | Record<string, Client>; // { "<client_id | email>": { "name": "...", "scopes": ["media:read"] } }
+  ACCESS_AUD_OAUTH?: string; // AUD dell'app Access con Managed OAuth (mcp.belinchebon.com): accesso di una persona da app come Claude
+  CLIENTS?: string | Record<string, Client>;
+
+  // Scritture (livello 3): piani da approvare. Senza questi valori le scritture sono disattivate.
+  STATE?: KvLike; // KV Namespace con piani e registro
+  ACCESS_AUD_APPROVAL?: string; // AUD dell'app Access della pagina di approvazione (accesso personale con email)
+  APPROVERS?: string; // email di chi può approvare, separate da virgola (segreto)
+  APPROVAL_SECRET?: string; // segreto per i token anti-CSRF della pagina di approvazione (segreto) // { "<client_id | email>": { "name": "...", "scopes": ["media:read"] } }
 
   // Token di servizio con cui il gateway entra nei servizi (anch'essi dietro Access)
   CF_ACCESS_CLIENT_ID?: string;
@@ -37,6 +44,14 @@ export type Fetcher = (input: string, init?: RequestInit) => Promise<Response>;
 export interface CacheLike {
   match(request: Request): Promise<Response | undefined>;
   put(request: Request, response: Response): Promise<void>;
+}
+
+/** Archivio chiave-valore (compatibile con un KV Namespace di Cloudflare), sostituibile nei test. */
+export interface KvLike {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, options?: { expirationTtl?: number; metadata?: unknown }): Promise<void>;
+  delete(key: string): Promise<void>;
+  list(options?: { prefix?: string; limit?: number }): Promise<{ keys: Array<{ name: string; metadata?: unknown }> }>;
 }
 
 export interface Ctx {

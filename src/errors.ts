@@ -25,3 +25,13 @@ export class NotConfigured extends Error {
     super(`${service} non configurato`);
   }
 }
+
+/** Errore di una scrittura (proposta, approvazione, applicazione): il messaggio è per l'agente e per la persona che approva. */
+export class WriteError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}

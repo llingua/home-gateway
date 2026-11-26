@@ -13,7 +13,7 @@ Livello di integrazione di casa Belinchebon: **un'unica API** per interrogare Pl
 ## Principi
 
 - **Per capacità, non per servizio.** `GET /v1/media/queue`, non `/radarr/...`. Se cambia un servizio cambia solo l'adapter in `src/services/`.
-- **Sola lettura.** La v1 non modifica nulla. Le future azioni avranno permessi separati (`media:write`) e un registro.
+- **Sola lettura, con eccezione controllata.** Le sezioni non modificano nulla. Le poche azioni di scrittura (livello 3) richiedono il permesso `config:write` e l'**approvazione di una persona** in browser prima di essere applicate; ogni passo finisce nel registro. Vedi `docs/APPROVAZIONI.md`.
 - **Un'identità per cliente.** Ogni cliente ha il suo service token Cloudflare Access e i suoi permessi: si può revocare uno senza toccare gli altri.
 - **Fail closed.** Se la configurazione di autenticazione manca, il Worker rifiuta tutto.
 - **Risposte parziali.** Un servizio giù non blocca gli altri: ogni sezione ha il suo `status` (`ok`, `error`, `unconfigured`).
@@ -61,7 +61,7 @@ Forma di una sezione:
 
 ### MCP (per Claude e altri agenti)
 
-`POST /mcp` (JSON-RPC 2.0, trasporto "streamable HTTP" senza sessioni): `initialize`, `ping`, `tools/list`, `tools/call`. Gli strumenti corrispondono alle sezioni (`get_streams`, `get_queue`, `get_config_radarr`...) più `get_overview` (stato) e `get_config_overview` (configurazioni); ogni cliente vede solo quelli permessi. Sola lettura. Come collegarlo: `docs/CLIENT-CLAUDE.md`.
+`POST /mcp` (JSON-RPC 2.0, trasporto "streamable HTTP" senza sessioni): `initialize`, `ping`, `tools/list`, `tools/call`. Gli strumenti corrispondono alle sezioni (`get_streams`, `get_queue`, `get_config_radarr`...) più `get_overview` (stato) e `get_config_overview` (configurazioni); ogni cliente vede solo quelli permessi. Le letture sono sempre disponibili; gli strumenti di scrittura (`propose_*`, `apply_plan`, `propose_undo`, `get_plan`, `get_audit_log`) compaiono solo se il gateway ha l'archivio `STATE` e il cliente ha `config:write`: proporre non cambia nulla, applicare richiede l'approvazione umana su `/approve/<id>`. Come collegarlo: `docs/CLIENT-CLAUDE.md`.
 
 Descrizione completa in [`openapi.yaml`](openapi.yaml). Gli errori hanno la forma `{ "error": { "code": "...", "message": "..." } }`.
 
@@ -81,6 +81,7 @@ Descrizione completa in [`openapi.yaml`](openapi.yaml). Gli errori hanno la form
 |---|---|
 | `ACCESS_TEAM_DOMAIN` | Dominio del team Access (es. `llhome.cloudflareaccess.com`) |
 | `ACCESS_AUD` | AUD tag dell'app Access `home-gateway` (non segreto) |
+| `ACCESS_AUD_OAUTH` | AUD dell'app Access con Managed OAuth su `mcp.belinchebon.com` (persone da app Claude; non segreto) |
 | `CLIENTS` | Clienti ammessi, come oggetto JSON (vedi sotto) |
 | `RADARR_URL`, `SONARR_URL`, `OVERSEERR_URL`, `PLEX_URL`, `PROWLARR_URL`, `BAZARR_URL`, `PROXMOX_URL`, `QBITTORRENT_URL` | Indirizzi dei servizi (hanno un valore predefinito) |
 
@@ -107,6 +108,7 @@ I Client ID non sono segreti.
 | `PROXMOX_API_TOKEN` | Token API di sola lettura, formato `utente@realm!nome=segreto`: vedi `docs/PROXMOX-TOKEN.md` |
 | `PLEX_TOKEN` | `X-Plex-Token` (Plex Web → ⋯ → Get Info → View XML) |
 | `QBT_USERNAME`, `QBT_PASSWORD` | Credenziali della Web UI di qBittorrent |
+| `APPROVAL_SECRET`, `APPROVERS` | Livello 3: chiave per i token CSRF e email (separate da virgola) di chi può approvare: vedi `docs/APPROVAZIONI.md` |
 
 Un servizio senza i suoi segreti non è un errore: la sezione risulta `unconfigured`.
 
