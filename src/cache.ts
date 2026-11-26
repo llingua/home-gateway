@@ -1,4 +1,7 @@
+import { SECTIONS } from "./sections";
 import type { CacheLike, SectionResult } from "./types";
+
+const cacheRequest = (key: string) => new Request(`https://home-gateway.cache/v1/${encodeURIComponent(key)}`);
 
 /**
  * Cache per sezione, nella Cache API di Cloudflare. Si salvano solo i risultati "ok":
@@ -12,7 +15,7 @@ export async function withCache<T>(
 ): Promise<SectionResult<T>> {
   if (!cache || ttlSeconds <= 0) return load();
 
-  const cacheKey = new Request(`https://home-gateway.cache/v1/${encodeURIComponent(key)}`);
+  const cacheKey = cacheRequest(key);
 
   try {
     const hit = await cache.match(cacheKey);
@@ -39,4 +42,21 @@ export async function withCache<T>(
     }
   }
   return result;
+}
+
+/**
+ * Svuota la cache di tutte le sezioni (di questa sede Cloudflare): dopo una modifica applicata la lettura successiva deve vedere il valore nuovo.
+ * Non solleva mai errori: una cache che non risponde non deve far fallire una modifica già fatta.
+ */
+export async function invalidateAllSections(cache: CacheLike | undefined): Promise<void> {
+  if (!cache) return;
+  await Promise.all(
+    SECTIONS.map(async (section) => {
+      try {
+        await cache.delete(cacheRequest(section.name));
+      } catch {
+        /* ignorato */
+      }
+    }),
+  );
 }

@@ -164,7 +164,7 @@ const TOOLS: Tool[] = [overviewTool, configOverviewTool, searchTool, ...SECTIONS
 
 function writeCtx(deps: McpDeps): WriteCtx {
   const now = () => deps.now ?? Math.floor(Date.now() / 1000);
-  return { env: deps.env, fetch: deps.fetch, store: new Store(deps.env.STATE!, now), now, origin: deps.origin ?? "" };
+  return { env: deps.env, fetch: deps.fetch, store: new Store(deps.env.STATE!, now), now, origin: deps.origin ?? "", cache: deps.cache };
 }
 
 /** Esegue una scrittura e trasforma i WriteError in un errore dello strumento, con un messaggio chiaro. */
