@@ -22,7 +22,9 @@ const PAGE_HEADERS = {
   "Cache-Control": "no-store",
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
-  "Referrer-Policy": "no-referrer",
+  // Non "no-referrer": con quella regola i browser mandano `Origin: null` anche sui moduli della stessa pagina
+  // e il controllo dell'Origin rifiuterebbe ogni decisione. "same-origin" non rivela nulla ad altri siti.
+  "Referrer-Policy": "same-origin",
   "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
 };
 

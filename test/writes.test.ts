@@ -269,6 +269,13 @@ describe("approvazione: la decisione", () => {
     expect((await tool("get_plan", { planId: data.planId }, WRITER)).data.status).toBe("approved");
   });
 
+  it("la pagina non usa Referrer-Policy no-referrer (i browser manderebbero Origin: null e ogni clic verrebbe rifiutato)", async () => {
+    const { data } = await proposeQbt({ max_active_torrents: 10 });
+    const res = await approvalRequest(data.planId, { method: "GET" });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Referrer-Policy")).toBe("same-origin");
+  });
+
   it("il token anti-CSRF di un altro piano non vale", async () => {
     const a = await proposeQbt({ max_active_torrents: 10 });
     const b = await proposeQbt({ max_active_torrents: 11 });
