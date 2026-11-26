@@ -12,6 +12,9 @@
 
   "observability": { "enabled": true },
 
+  // Archivio dei piani di modifica e del registro (livello 3, vedi docs/APPROVAZIONI.md).
+  "kv_namespaces": [{ "binding": "STATE", "id": "67304ad6718a437ebfdb5ffbb72990ee" }],
+
   // Valori NON segreti. I segreti (chiavi API, token) si impostano con
   // `wrangler secret put` o dalla dashboard: vedi README.md.
   "vars": {
@@ -28,11 +31,14 @@
     // App Access "home-gateway" (gateway.belinchebon.com). L'AUD non è un segreto.
     "ACCESS_AUD": "7a14b721580364e4b5f397b8f971367c83bec4d1376257e391b2a51ec4b117ff",
 
+    // App Access "home-gateway approvazioni" (gateway.belinchebon.com/approve, solo persone). Non è un segreto.
+    "ACCESS_AUD_APPROVAL": "629ca5d160ec93c836591912072f031b640453f3120e390ea51d0d4566fdbdc5",
+
     // Clienti ammessi: Client ID del service token (non segreto) -> nome e permessi.
     "CLIENTS": {
       "c5d8112ae945f36d8e60548d2ed19115.access": { "name": "homepage", "scopes": ["media:read"] },
       "2640e35f111605780c691bd032f63271.access": { "name": "home-assistant", "scopes": ["media:read"] },
-      "439a57abe8fcb6d087d59092810312e8.access": { "name": "agente", "scopes": ["media:read", "config:read"] }
+      "439a57abe8fcb6d087d59092810312e8.access": { "name": "agente", "scopes": ["media:read", "config:read", "config:write"] }
     }
   }
 }
