@@ -11,7 +11,9 @@ Zero Trust → Access → Service Auth → **Create Service Token** → nome `cl
 Poi serve autorizzarlo (può farlo Claude se gli dai solo il Client ID):
 1. Access → Applications → `home-gateway` → policy "Gateway clients" → aggiungi il token.
 2. `wrangler.jsonc` → `vars.CLIENTS` → una riga con i permessi dell'agente, per esempio:
-   `"<client-id>": { "name": "agente", "scopes": ["media:read"] }`
+   `"<client-id>": { "name": "agente", "scopes": ["media:read", "config:read"] }`
+
+   `media:read` dà i dati di stato; `config:read` dà in più le **impostazioni dei servizi** per l'audit (senza chiavi né password). La homepage e Home Assistant non hanno `config:read`.
 
 ## 2. Collegamento
 
@@ -33,7 +35,16 @@ Il segreto resta nella configurazione locale del tuo computer: non committarla.
 - accettare il token di servizio in un'unica intestazione (impostazione dell'app Access) e salvarlo come credenziale della sessione, così l'agente chiama il gateway senza vedere il segreto;
 - aggiungere OAuth al gateway (Cloudflare Access come provider): più lavoro.
 
-## 3. Cosa fa e cosa non fa
+## 3. Cosa chiedere
+
+Con `config:read` l'agente può analizzare le configurazioni e proporre correzioni, per esempio:
+- "Controlla i profili di qualità di Radarr e Sonarr e dimmi cosa non va."
+- "Gli indexer di Prowlarr sono sincronizzati con Radarr e Sonarr? Ci sono problemi?"
+- "I limiti e le code di qBittorrent sono ragionevoli per la mia banda?"
+
+L'agente **legge e propone**: non applica nulla. Le modifiche, quando ci saranno, avranno un permesso separato e la tua conferma.
+
+## 4. Cosa fa e cosa non fa
 
 - Ogni cliente vede solo gli strumenti per cui ha il permesso (`tools/list` li filtra) e non può chiamare gli altri.
 - Il gateway registra nei log **chi** ha chiamato **quale strumento**, mai i dati restituiti.

@@ -89,6 +89,7 @@ export const CLIENTS = JSON.stringify({
   "homepage-client-id": { name: "homepage", scopes: ["media:read"] },
   "no-scope-id": { name: "senza-permessi", scopes: [] },
   "Admin@Example.com": { name: "admin", scopes: ["*"] },
+  "agent-id": { name: "agente", scopes: ["media:read", "config:read"] },
 });
 
 export const baseEnv = (extra: Partial<Env> = {}): Env => ({
@@ -215,7 +216,64 @@ export function healthyNet(key: TestKey): FakeNet {
     { id: 4, enable: false },
   ]);
   net.json("https://prowlarr.test/api/v1/health", [{ type: "warning", message: "Indexer non disponibili: X" }, { type: "ok", message: "" }]);
+  addConfigFixtures(net);
   return net;
+}
+
+/** Impostazioni "realistiche": con chiavi, password e indirizzi dove i servizi veri li mettono. */
+function addConfigFixtures(net: FakeNet): void {
+  const indexerWithSecrets = {
+    id: 4, tags: [], configContract: "TorznabSettings", infoLink: "https://wiki.servarr.com/torznab", name: "Prowlarr (Torznab)", implementation: "Torznab", protocol: "torrent", enableRss: true, enableAutomaticSearch: true,
+    enableInteractiveSearch: true, priority: 25, apiKey: "top-secret-indexer",
+    fields: [{ name: "apiKey", value: "radarr-indexer-secret-key" }, { name: "baseUrl", value: "http://192.168.0.9:9696/1/" }],
+  };
+  const clientWithSecrets = {
+    id: 7, tags: [1], configContract: "QBittorrentSettings", infoLink: "https://wiki.servarr.com/qbittorrent", implementationName: "qBittorrent",
+    name: "qBittorrent", implementation: "QBittorrent", protocol: "torrent", enable: true, priority: 1, removeCompletedDownloads: true,
+    fields: [{ name: "username", value: "admin-user" }, { name: "password", value: "qbt-pass-leak" }, { name: "host", value: "192.168.0.171" }],
+  };
+
+  for (const service of ["radarr", "sonarr"]) {
+    const base = `https://${service}.test/api/v3`;
+    net.json(`${base}/system/status`, { version: "5.0.1", apiKeyHint: "ignorato" });
+    net.json(`${base}/qualityprofile`, [
+      {
+        name: "HD-1080p", upgradeAllowed: true, cutoff: 1001, minFormatScore: 0, cutoffFormatScore: 100,
+        items: [
+          { quality: { id: 1, name: "SDTV" }, items: [], allowed: false },
+          { id: 1001, name: "WEB 1080p", items: [{ quality: { id: 3, name: "WEBDL-1080p" } }, { quality: { id: 15, name: "WEBRip-1080p" } }], allowed: true },
+          { quality: { id: 7, name: "Bluray-1080p" }, items: [], allowed: true },
+        ],
+      },
+    ]);
+    net.json(`${base}/customformat`, [{ name: "x265 (HD)", specifications: [{ fields: { value: "leak-in-spec" } }] }, { name: "Repack/Proper" }]);
+    net.json(`${base}/rootfolder`, [{ path: "/data/media", freeSpace: 770 * 1024 ** 3, accessible: true }]);
+    net.json(`${base}/downloadclient`, [clientWithSecrets]);
+    net.json(`${base}/indexer`, [indexerWithSecrets]);
+    net.json(`${base}/config/mediamanagement`, {
+      copyUsingHardlinks: true, deleteEmptyFolders: false, recycleBin: "/data/cestino", recycleBinCleanupDays: 7,
+      downloadPropersAndRepacks: "preferAndUpgrade", chmodFolder: "755", chownGroup: "gruppo-segreto",
+    });
+    net.json(`${base}/config/naming`, { renameMovies: true, standardMovieFormat: "{Movie Title} ({Release Year})", renameEpisodes: true, standardEpisodeFormat: "{Series Title} - S{season:00}E{episode:00}" });
+    net.json(`${base}/delayprofile`, [{ enableUsenet: true, enableTorrent: true, preferredProtocol: "torrent", usenetDelay: 0, torrentDelay: 30, order: 2147483647, tags: [1] }]);
+    net.json(`${base}/tag`, [{ id: 1, label: "4k" }]);
+  }
+
+  net.json("https://prowlarr.test/api/v1/system/status", { version: "1.30.0" });
+  net.json("https://prowlarr.test/api/v1/applications", [
+    { id: 3, tags: [], configContract: "RadarrSettings", implementationName: "Radarr", syncCategories: [2000], name: "Radarr", implementation: "Radarr", syncLevel: "fullSync", fields: [{ name: "apiKey", value: "APP-LEAK-1234" }, { name: "baseUrl", value: "http://192.168.0.171:7878" }] },
+  ]);
+  net.json("https://prowlarr.test/api/v1/appprofile", [{ name: "Standard", enableRss: true, enableAutomaticSearch: true, enableInteractiveSearch: true, minimumSeeders: 1 }]);
+  net.json("https://prowlarr.test/api/v1/downloadclient", [clientWithSecrets]);
+  net.json("https://prowlarr.test/api/v1/tag", [{ id: 1, label: "italia" }]);
+
+  net.json("https://qbt.test/api/v2/app/preferences", {
+    save_path: "/downloads", max_active_downloads: 3, max_active_torrents: 5, dl_limit: 0, up_limit: 1_000_000, max_ratio_enabled: true, max_ratio: 2,
+    web_ui_username: "admin-user", web_ui_password: "hash-of-qbt-password", web_ui_address: "192.168.0.171", proxy_ip: "10.1.1.1", proxy_password: "proxy-pass",
+    autorun_program: "/usr/bin/autorun-segreto", bypass_auth_subnet_whitelist: "192.168.0.0/24", mail_notification_password: "mail-pass",
+  });
+  net.json("https://qbt.test/api/v2/torrents/categories", { radarr: { name: "radarr", savePath: "/downloads/radarr" }, sonarr: { name: "sonarr", savePath: "/downloads/sonarr" } });
+  net.on("https://qbt.test/api/v2/app/version", () => new Response("v5.0.2"));
 }
 
 export async function authedRequest(key: TestKey, path: string, claims: Record<string, unknown> = validClaims()): Promise<Request> {

@@ -1,10 +1,15 @@
 import { NotConfigured, UpstreamError } from "./errors";
-import { fetchDiskSpace, fetchHealth, fetchQueue, fetchUpcoming, fetchWantedCount } from "./services/arr";
-import { fetchDownloads } from "./services/qbittorrent";
+import { scrubSecrets } from "./scrub";
+import { fetchDiskSpace, fetchHealth, fetchQueue, fetchUpcoming, fetchWantedCount, type ArrService } from "./services/arr";
+import {
+  fetchArrIndexers, fetchArrTags, fetchArrVersion, fetchCustomFormats, fetchDelayProfiles, fetchDownloadClients,
+  fetchMediaManagement, fetchNaming, fetchQualityProfiles, fetchRootFolders,
+} from "./services/arr-config";
+import { fetchDownloads, fetchQbtConfig } from "./services/qbittorrent";
 import { fetchSubtitles } from "./services/bazarr";
 import { fetchLastAvailable, fetchRequests } from "./services/overseerr";
 import { fetchLibraries, fetchStreams } from "./services/plex";
-import { fetchIndexers } from "./services/prowlarr";
+import { fetchIndexers, fetchProwlarrConfig } from "./services/prowlarr";
 import { fetchProxmox } from "./services/proxmox";
 import type { Ctx, SectionResult } from "./types";
 
@@ -13,10 +18,14 @@ import type { Ctx, SectionResult } from "./types";
  * non da quale servizio arriva: se domani cambia il servizio, cambia solo l'adapter.
  */
 
+export type SectionGroup = "media" | "config";
+
 export interface SectionDef {
   name: string;
   description: string;
   scope: string;
+  /** "media" (default): dati di stato; "config": impostazioni dei servizi, con un permesso a parte. */
+  group?: SectionGroup;
   /** Secondi di cache. */
   ttl: number;
   load: (ctx: Ctx) => Promise<SectionResult>;
@@ -69,6 +78,38 @@ async function combine(parts: Record<string, () => Promise<unknown>>): Promise<S
 }
 
 const SCOPE = "media:read";
+const CONFIG_SCOPE = "config:read";
+
+/**
+ * Sezione di configurazione (audit): permesso a parte e, qualunque cosa restituisca l'adapter,
+ * una pulizia finale da chiavi, password e valori che ne hanno l'aspetto.
+ */
+function configSection(service: string, description: string, parts: (ctx: Ctx) => Record<string, () => Promise<unknown>>): SectionDef {
+  return {
+    name: `config_${service}`,
+    description,
+    scope: CONFIG_SCOPE,
+    group: "config",
+    ttl: 60,
+    load: async (ctx) => {
+      const result = await combine(parts(ctx));
+      return result.data ? { ...result, data: scrubSecrets(result.data) } : result;
+    },
+  };
+}
+
+const arrConfigParts = (service: ArrService) => (ctx: Ctx) => ({
+  version: () => fetchArrVersion(ctx, service),
+  qualityProfiles: () => fetchQualityProfiles(ctx, service),
+  customFormats: () => fetchCustomFormats(ctx, service),
+  rootFolders: () => fetchRootFolders(ctx, service),
+  downloadClients: () => fetchDownloadClients(ctx, service),
+  indexers: () => fetchArrIndexers(ctx, service),
+  mediaManagement: () => fetchMediaManagement(ctx, service),
+  naming: () => fetchNaming(ctx, service),
+  delayProfiles: () => fetchDelayProfiles(ctx, service),
+  tags: () => fetchArrTags(ctx, service),
+});
 
 export const SECTIONS: SectionDef[] = [
   {
@@ -176,7 +217,17 @@ export const SECTIONS: SectionDef[] = [
     ttl: 30,
     load: (ctx) => single(() => fetchProxmox(ctx)),
   },
+  configSection("radarr", "Impostazioni di Radarr per l'audit: profili di qualità, formati personalizzati, cartelle, client di download, indexer, naming (senza chiavi né password).", arrConfigParts("radarr")),
+  configSection("sonarr", "Impostazioni di Sonarr per l'audit: profili di qualità, formati personalizzati, cartelle, client di download, indexer, naming (senza chiavi né password).", arrConfigParts("sonarr")),
+  configSection("prowlarr", "Impostazioni di Prowlarr per l'audit: indexer, applicazioni collegate, profili, client di download (senza chiavi né password).", (ctx) => ({
+    prowlarr: () => fetchProwlarrConfig(ctx),
+  })),
+  configSection("qbittorrent", "Impostazioni di qBittorrent per l'audit: percorsi, code, limiti, rapporto di condivisione, categorie (senza credenziali, proxy né programmi da eseguire).", (ctx) => ({
+    qbittorrent: () => fetchQbtConfig(ctx),
+  })),
 ];
+
+export const sectionGroup = (section: SectionDef): SectionGroup => section.group ?? "media";
 
 export function findSection(name: string): SectionDef | undefined {
   return SECTIONS.find((section) => section.name === name);
