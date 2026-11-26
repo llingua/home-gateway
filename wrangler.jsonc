@@ -8,7 +8,11 @@
   // personalizzato, che sta dietro Cloudflare Access.
   "workers_dev": false,
   "preview_urls": false,
-  "routes": [{ "pattern": "gateway.belinchebon.com", "custom_domain": true }],
+  "routes": [
+    { "pattern": "gateway.belinchebon.com", "custom_domain": true },
+    // Indirizzo per i client che entrano con OAuth (app Claude): Access con Managed OAuth, solo persone.
+    { "pattern": "mcp.belinchebon.com", "custom_domain": true }
+  ],
 
   "observability": { "enabled": true },
 
