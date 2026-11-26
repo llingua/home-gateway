@@ -31,9 +31,26 @@ Il segreto resta nella configurazione locale del tuo computer: non committarla.
 
 **Agent SDK e altri client MCP "streamable HTTP" con intestazioni personalizzate:** stesso indirizzo e stesse due intestazioni.
 
-**Connettori di claude.ai e sessioni cloud di Claude Code:** usano OAuth e non permettono intestazioni fisse, quindi con questa autenticazione **non si collegano ancora**. Opzioni, da decidere quando servono:
-- accettare il token di servizio in un'unica intestazione (impostazione dell'app Access) e salvarlo come credenziale della sessione, così l'agente chiama il gateway senza vedere il segreto;
-- aggiungere OAuth al gateway (Cloudflare Access come provider): più lavoro.
+**Sessioni cloud di Claude Code (l'app Claude, le sessioni nel browser): funziona, provato dal vivo.**
+Le sessioni cloud non permettono intestazioni fisse nella configurazione, ma possono salvare **un segreto come credenziale dell'ambiente**: la sessione lo aggiunge da sola alle richieste verso un indirizzo, e l'agente non lo vede mai. Access vuole due intestazioni, quindi si divide così:
+- il **Client Secret** di `client-agent` si salva come credenziale dell'ambiente, per l'indirizzo `gateway.belinchebon.com`, con intestazione `CF-Access-Client-Secret`. Lo inserisce l'utente nel modulo che l'agente apre (strumento `request_credential`): l'agente non lo riceve;
+- il **Client ID** non è segreto: lo manda l'agente (`CF-Access-Client-Id: <client id>`).
+
+Poi l'agente chiama il gateway come un normale client MCP, per esempio con `curl`:
+
+```bash
+curl -sS -X POST https://gateway.belinchebon.com/mcp \
+  -H "Content-Type: application/json" \
+  -H "CF-Access-Client-Id: <client id>" \
+  --data '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_overview","arguments":{}}}'
+```
+
+Note pratiche:
+- La credenziale vale per **tutte le sessioni** di quell'ambiente (di solito il "Default" personale). Se si sbaglia il valore, basta salvarlo di nuovo con lo stesso nome: sostituisce quello vecchio.
+- Dopo il salvataggio può servire fino a un minuto prima che le richieste passino.
+- Se il Client Secret si perde, si rigenera in Zero Trust → Access → Service Auth → `client-agent`, e si salva di nuovo.
+
+**Chat dell'app Claude e telefono (connettori di claude.ai):** usano OAuth e non permettono intestazioni fisse, quindi con questa autenticazione **non si collegano ancora**. Serve aggiungere OAuth al gateway (Cloudflare Access come provider di accesso, un hostname pubblico dedicato e una schermata di consenso): è un progetto a parte, da progettare con cura perché è la parte più delicata dal punto di vista della sicurezza.
 
 ## 3. Cosa chiedere
 
