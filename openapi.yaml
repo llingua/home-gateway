@@ -48,7 +48,8 @@ paths:
     post:
       summary: Interfaccia MCP (JSON-RPC 2.0) per agenti come Claude
       description: >
-        Metodi: initialize, ping, tools/list, tools/call. Strumenti di sola lettura (get_overview e uno per sezione),
+        Metodi: initialize, ping, tools/list, tools/call. Strumenti di lettura (get_overview e uno per sezione) e, con permesso
+        config:write e archivio STATE, di scrittura con approvazione (propose_*, apply_plan, propose_undo, get_plan, get_audit_log);
         filtrati in base ai permessi del cliente. Vedi docs/CLIENT-CLAUDE.md.
         Le richieste con intestazione Origin sono rifiutate; dimensione massima 64 KB.
       requestBody:
@@ -63,6 +64,20 @@ paths:
         "403": { description: Origin non ammessa }
         "405": { description: metodo diverso da POST }
         "413": { description: richiesta troppo grande }
+  /approve/{planId}:
+    get:
+      summary: Pagina di approvazione di un piano (solo persone, app Access dedicata)
+      description: >
+        Non per i clienti API: serve a una persona autorizzata (email in APPROVERS) per leggere un piano di modifica e
+        approvarlo o rifiutarlo (POST con token CSRF). I service token non possono approvare. Vedi docs/APPROVAZIONI.md.
+      security: []
+      parameters:
+        - { name: planId, in: path, required: true, schema: { type: string, pattern: "^[a-f0-9]{32}$" } }
+      responses:
+        "200": { description: pagina HTML del piano }
+        "403": { description: persona non autorizzata }
+        "404": { description: piano inesistente o scaduto }
+        "503": { description: approvazioni non configurate }
   /v1/media/overview:
     get:
       summary: Tutte le sezioni in una sola richiesta

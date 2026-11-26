@@ -1,0 +1,200 @@
+import { WriteError } from "./errors";
+import { login } from "./services/qbittorrent";
+import type { PlanChange } from "./store";
+import { baseUrl, getJson, request, requireSecret } from "./upstream";
+import type { Ctx } from "./types";
+
+/**
+ * Le uniche modifiche possibili: un elenco chiuso, ognuna con i suoi limiti.
+ * Ogni azione sa: validare l'input, calcolare cosa cambierebbe (senza cambiare nulla), verificare che lo stato
+ * sia ancora quello del piano e infine applicarlo. Tutte sono reversibili con un'altra azione.
+ */
+
+export interface PlanDraft {
+  summary: string;
+  changes: PlanChange[];
+  undo: { action: string; input: Record<string, unknown> } | null;
+}
+
+export interface ActionDef {
+  name: string;
+  description: string;
+  scope: string;
+  inputSchema: Record<string, unknown>;
+  /** Valida e normalizza l'input, oppure solleva WriteError. */
+  parse(input: unknown): Record<string, unknown>;
+  /** Cosa cambierebbe. NON modifica nulla. */
+  plan(ctx: Ctx, input: Record<string, unknown>): Promise<PlanDraft>;
+  /** Il valore attuale è ancora quello su cui è stato calcolato il piano? */
+  stillValid(ctx: Ctx, input: Record<string, unknown>, changes: PlanChange[]): Promise<boolean>;
+  /** Applica e verifica. Restituisce un messaggio breve. */
+  apply(ctx: Ctx, input: Record<string, unknown>): Promise<string>;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+
+// --- qBittorrent: limiti di coda e di banda -------------------------------------------------------------------
+
+const QBT_RANGES: Record<string, [number, number]> = {
+  max_active_downloads: [1, 100],
+  max_active_uploads: [1, 100],
+  max_active_torrents: [1, 200],
+  dl_limit: [0, 2_000_000_000], // byte/secondo, 0 = illimitato
+  up_limit: [0, 2_000_000_000],
+};
+
+async function readQbtPreferences(ctx: Ctx): Promise<{ base: string; headers: Record<string, string>; prefs: Record<string, unknown> }> {
+  const base = baseUrl(ctx.env, "qbittorrent");
+  const headers = { Cookie: await login(ctx, base), Referer: base };
+  const prefs = await getJson<Record<string, unknown>>(ctx, `${base}/api/v2/app/preferences`, { headers });
+  return { base, headers, prefs };
+}
+
+const qbittorrentPreferences: ActionDef = {
+  name: "qbittorrent_preferences",
+  description:
+    "qBittorrent: cambia i limiti di coda e di banda. Chiavi ammesse: " +
+    Object.entries(QBT_RANGES).map(([key, [min, max]]) => `${key} (${min}-${max})`).join(", ") + ".",
+  scope: "config:write",
+  inputSchema: {
+    type: "object",
+    properties: {
+      changes: {
+        type: "object",
+        properties: Object.fromEntries(Object.entries(QBT_RANGES).map(([key, [min, max]]) => [key, { type: "integer", minimum: min, maximum: max }])),
+        additionalProperties: false,
+      },
+    },
+    required: ["changes"],
+    additionalProperties: false,
+  },
+  parse(input) {
+    if (!isRecord(input) || !isRecord(input.changes)) throw new WriteError("invalid_input", "Serve un oggetto `changes` con le impostazioni da cambiare");
+    const out: Record<string, number> = {};
+    for (const [key, value] of Object.entries(input.changes)) {
+      const range = QBT_RANGES[key];
+      if (!range) throw new WriteError("invalid_input", `Impostazione non modificabile: ${key}`);
+      if (typeof value !== "number" || !Number.isInteger(value) || value < range[0] || value > range[1]) {
+        throw new WriteError("invalid_input", `${key} deve essere un intero tra ${range[0]} e ${range[1]}`);
+      }
+      out[key] = value;
+    }
+    if (Object.keys(out).length === 0) throw new WriteError("invalid_input", "Nessuna impostazione indicata");
+    return { changes: out };
+  },
+  async plan(ctx, input) {
+    const wanted = input.changes as Record<string, number>;
+    const { prefs } = await readQbtPreferences(ctx);
+    const changes: PlanChange[] = [];
+    const before: Record<string, number> = {};
+    for (const [key, to] of Object.entries(wanted)) {
+      const from = prefs[key];
+      if (from === to) continue;
+      changes.push({ target: "qBittorrent", field: key, from, to });
+      if (typeof from === "number") before[key] = from;
+    }
+    if (changes.length === 0) throw new WriteError("no_change", "Nessuna modifica: i valori sono già questi");
+    return {
+      summary: `qBittorrent: cambia ${changes.map((change) => change.field).join(", ")}`,
+      changes,
+      undo: Object.keys(before).length === changes.length ? { action: "qbittorrent_preferences", input: { changes: before } } : null,
+    };
+  },
+  async stillValid(ctx, _input, changes) {
+    const { prefs } = await readQbtPreferences(ctx);
+    return changes.every((change) => prefs[change.field] === change.from);
+  },
+  async apply(ctx, input) {
+    const wanted = input.changes as Record<string, number>;
+    const { base, headers } = await readQbtPreferences(ctx);
+    await request(ctx, `${base}/api/v2/app/setPreferences`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ json: JSON.stringify(wanted) }),
+    });
+    const after = await readQbtPreferences(ctx);
+    const wrong = Object.entries(wanted).filter(([key, value]) => after.prefs[key] !== value);
+    if (wrong.length) throw new Error("Verifica fallita: qBittorrent non riporta i nuovi valori");
+    return `Applicato e verificato: ${Object.entries(wanted).map(([key, value]) => `${key}=${value}`).join(", ")}`;
+  },
+};
+
+// --- Prowlarr: attiva/disattiva un indexer ----------------------------------------------------------------------
+
+interface ProwlarrIndexer {
+  id?: number;
+  name?: string;
+  enable?: boolean;
+  [key: string]: unknown;
+}
+
+async function prowlarrAccess(ctx: Ctx): Promise<{ base: string; headers: Record<string, string> }> {
+  const key = requireSecret(ctx.env.PROWLARR_API_KEY, "prowlarr");
+  return { base: baseUrl(ctx.env, "prowlarr"), headers: { "X-Api-Key": key } };
+}
+
+async function readIndexer(ctx: Ctx, id: number): Promise<ProwlarrIndexer> {
+  const { base, headers } = await prowlarrAccess(ctx);
+  try {
+    return await getJson<ProwlarrIndexer>(ctx, `${base}/api/v1/indexer/${id}`, { headers });
+  } catch (error) {
+    if (error instanceof Error && /HTTP 404/.test(error.message)) throw new WriteError("not_found", `Indexer ${id} non trovato`);
+    throw error;
+  }
+}
+
+const prowlarrIndexerEnabled: ActionDef = {
+  name: "prowlarr_indexer_enabled",
+  description: "Prowlarr: attiva o disattiva un indexer (l'`id` si legge da get_config_prowlarr).",
+  scope: "config:write",
+  inputSchema: {
+    type: "object",
+    properties: { indexerId: { type: "integer", minimum: 1 }, enable: { type: "boolean" } },
+    required: ["indexerId", "enable"],
+    additionalProperties: false,
+  },
+  parse(input) {
+    if (!isRecord(input)) throw new WriteError("invalid_input", "Input non valido");
+    const unknown = Object.keys(input).filter((key) => key !== "indexerId" && key !== "enable");
+    if (unknown.length) throw new WriteError("invalid_input", `Campi non ammessi: ${unknown.join(", ")}`);
+    if (typeof input.indexerId !== "number" || !Number.isInteger(input.indexerId) || input.indexerId < 1) throw new WriteError("invalid_input", "indexerId deve essere un intero positivo");
+    if (typeof input.enable !== "boolean") throw new WriteError("invalid_input", "enable deve essere true o false");
+    return { indexerId: input.indexerId, enable: input.enable };
+  },
+  async plan(ctx, input) {
+    const id = input.indexerId as number;
+    const to = input.enable as boolean;
+    const indexer = await readIndexer(ctx, id);
+    const from = indexer.enable === true;
+    if (from === to) throw new WriteError("no_change", `L'indexer "${indexer.name ?? id}" è già ${to ? "attivo" : "disattivato"}`);
+    return {
+      summary: `Prowlarr: ${to ? "attiva" : "disattiva"} l'indexer "${indexer.name ?? id}"`,
+      changes: [{ target: `Prowlarr: indexer "${indexer.name ?? id}" (id ${id})`, field: "enable", from, to }],
+      undo: { action: "prowlarr_indexer_enabled", input: { indexerId: id, enable: from } },
+    };
+  },
+  async stillValid(ctx, input, changes) {
+    return (await readIndexer(ctx, input.indexerId as number)).enable === changes[0]?.from;
+  },
+  async apply(ctx, input) {
+    const id = input.indexerId as number;
+    const to = input.enable as boolean;
+    const { base, headers } = await prowlarrAccess(ctx);
+    // L'oggetto completo (con le credenziali dell'indexer) passa solo da qui, dal gateway a Prowlarr: non esce mai.
+    const full = await readIndexer(ctx, id);
+    await request(ctx, `${base}/api/v1/indexer/${id}?forceSave=true`, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ ...full, enable: to }),
+    });
+    const after = await readIndexer(ctx, id);
+    if ((after.enable === true) !== to) throw new Error("Verifica fallita: Prowlarr non riporta il nuovo stato");
+    return `Applicato e verificato: indexer "${full.name ?? id}" ${to ? "attivo" : "disattivato"}`;
+  },
+};
+
+export const ACTIONS: ActionDef[] = [qbittorrentPreferences, prowlarrIndexerEnabled];
+
+export function findAction(name: string): ActionDef | undefined {
+  return ACTIONS.find((action) => action.name === name);
+}
