@@ -3,6 +3,7 @@ import { fetchDiskSpace, fetchHealth, fetchQueue, fetchUpcoming, fetchWantedCoun
 import { fetchDownloads } from "./services/qbittorrent";
 import { fetchRequests } from "./services/overseerr";
 import { fetchLibraries, fetchStreams } from "./services/plex";
+import { fetchIndexers } from "./services/prowlarr";
 import type { Ctx, SectionResult } from "./types";
 
 /**
@@ -144,6 +145,13 @@ export const SECTIONS: SectionDef[] = [
         radarr: () => fetchHealth(ctx, "radarr"),
         sonarr: () => fetchHealth(ctx, "sonarr"),
       }),
+  },
+  {
+    name: "indexers",
+    description: "Indexer di Prowlarr: quanti, quanti non attivi, avvisi di salute.",
+    scope: SCOPE,
+    ttl: 120,
+    load: (ctx) => single(() => fetchIndexers(ctx)),
   },
 ];
 

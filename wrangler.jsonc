@@ -20,6 +20,7 @@
     "SONARR_URL": "https://sonarr.belinchebon.com",
     "OVERSEERR_URL": "https://overseerr.belinchebon.com",
     "PLEX_URL": "https://plex.belinchebon.com",
+    "PROWLARR_URL": "https://prowlarr.belinchebon.com",
     "QBITTORRENT_URL": "https://qbt.belinchebon.com",
 
     // App Access "home-gateway" (gateway.belinchebon.com). L'AUD non è un segreto.

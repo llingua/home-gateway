@@ -15,6 +15,10 @@ export interface Env {
   SONARR_API_KEY?: string;
   OVERSEERR_URL?: string;
   OVERSEERR_API_KEY?: string;
+  /** Alias accettato per OVERSEERR_API_KEY (errore di battitura frequente nel nome del segreto). */
+  OVERSEER_API_KEY?: string;
+  PROWLARR_URL?: string;
+  PROWLARR_API_KEY?: string;
   PLEX_URL?: string;
   PLEX_TOKEN?: string;
   QBITTORRENT_URL?: string;
