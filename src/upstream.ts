@@ -10,12 +10,13 @@ const DEFAULT_URLS = {
   plex: "https://plex.belinchebon.com",
   prowlarr: "https://prowlarr.belinchebon.com",
   bazarr: "https://bazarr.belinchebon.com",
+  proxmox: "https://proxmox.belinchebon.com",
   qbittorrent: "https://qbt.belinchebon.com",
 } as const;
 
 export type ServiceName = keyof typeof DEFAULT_URLS;
 
-type UrlVar = "RADARR_URL" | "SONARR_URL" | "OVERSEERR_URL" | "PLEX_URL" | "PROWLARR_URL" | "BAZARR_URL" | "QBITTORRENT_URL";
+type UrlVar = "RADARR_URL" | "SONARR_URL" | "OVERSEERR_URL" | "PLEX_URL" | "PROWLARR_URL" | "BAZARR_URL" | "PROXMOX_URL" | "QBITTORRENT_URL";
 
 const URL_VARS: Record<ServiceName, UrlVar> = {
   radarr: "RADARR_URL",
@@ -24,6 +25,7 @@ const URL_VARS: Record<ServiceName, UrlVar> = {
   plex: "PLEX_URL",
   prowlarr: "PROWLARR_URL",
   bazarr: "BAZARR_URL",
+  proxmox: "PROXMOX_URL",
   qbittorrent: "QBITTORRENT_URL",
 };
 

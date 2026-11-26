@@ -73,12 +73,12 @@ paths:
       description: >
         Sezioni: streams (riproduzioni Plex), downloads (qBittorrent), requests (Overseerr), recent (ultimo contenuto disponibile),
         queue (code Radarr/Sonarr), upcoming (prossime uscite), library (librerie Plex e mancanti),
-        storage (spazio libero), health (avvisi di salute), indexers (indexer Prowlarr), subtitles (sottotitoli mancanti, Bazarr).
+        storage (spazio libero), health (avvisi di salute), indexers (indexer Prowlarr), subtitles (sottotitoli mancanti, Bazarr), proxmox (host, guest, storage, ultimo backup).
       parameters:
         - name: section
           in: path
           required: true
-          schema: { type: string, enum: [streams, downloads, requests, recent, queue, upcoming, library, storage, health, indexers, subtitles] }
+          schema: { type: string, enum: [streams, downloads, requests, recent, queue, upcoming, library, storage, health, indexers, subtitles, proxmox] }
       responses:
         "200":
           description: sezione

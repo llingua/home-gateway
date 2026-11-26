@@ -107,6 +107,8 @@ export const baseEnv = (extra: Partial<Env> = {}): Env => ({
   PROWLARR_API_KEY: "prowlarr-key",
   BAZARR_URL: "https://bazarr.test",
   BAZARR_API_KEY: "bazarr-key",
+  PROXMOX_URL: "https://pve.test",
+  PROXMOX_API_TOKEN: "gateway@pve!home=pve-secret-token",
   PLEX_URL: "https://plex.test",
   PLEX_TOKEN: "plex-token",
   QBITTORRENT_URL: "https://qbt.test",
@@ -183,6 +185,24 @@ export function healthyNet(key: TestKey): FakeNet {
   });
   net.json("https://overseerr.test/api/v1/movie/11", { title: "Ti presento i Fotter" });
   net.json("https://overseerr.test/api/v1/issue/count", { total: 5, open: 1, closed: 4 });
+  net.json("https://pve.test/api2/json/nodes/pve/tasks", {
+    data: [
+      { type: "vzdump", status: "OK", starttime: 1_800_000_000, endtime: 1_800_000_600 },
+      { type: "vzdump", status: "job errors", starttime: 1_700_000_000, endtime: 1_700_000_100 },
+      { type: "vzdump", starttime: 1_900_000_000 },
+    ],
+  });
+  net.json("https://pve.test/api2/json/cluster/resources", {
+    data: [
+      { type: "node", node: "pve", status: "online", cpu: 0.124, mem: 6e9, maxmem: 16e9, uptime: 86_400 },
+      { type: "lxc", vmid: 103, name: "jarvis", status: "running", cpu: 0.01, mem: 1e8, maxmem: 1e9 },
+      { type: "qemu", vmid: 101, name: "windows11", status: "stopped", cpu: 0, mem: 0, maxmem: 8e9 },
+      { type: "qemu", vmid: 9000, name: "modello", status: "stopped", template: 1 },
+      { type: "storage", storage: "local-lvm", node: "pve", disk: 63 * 1024 ** 3, maxdisk: 100 * 1024 ** 3 },
+      { type: "storage", storage: "nas", node: "pve", disk: 1, maxdisk: 2 },
+      { type: "storage", storage: "nas", node: "altro", disk: 1, maxdisk: 2 },
+    ],
+  });
   net.json("https://bazarr.test/api/badges", { movies: 2, episodes: 5, providers: 1, status: 0, announcements: 3 });
   net.json("https://prowlarr.test/api/v1/indexerstatus", [
     { indexerId: 2, disabledTill: "2099-01-01T00:00:00Z" },
