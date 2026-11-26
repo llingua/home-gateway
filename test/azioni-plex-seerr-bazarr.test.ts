@@ -72,6 +72,7 @@ function net(w: World, key: Awaited<ReturnType<typeof makeKey>>): FakeNet {
       if (req.method === "PUT") {
         const body = (await req.json()) as any;
         w.seerr.serverPuts.push({ service, id, body });
+        if ("id" in body) return new Response("request.body.id is read-only", { status: 400 }); // come la validazione di Seerr
         const i = w.seerr.servers[service].findIndex((s) => String(s.id) === id);
         if (i < 0) return new Response("no", { status: 404 });
         if (!w.seerr.ignoreWrite) w.seerr.servers[service][i] = { ...body, id: Number(id) }; // sostituzione completa
@@ -236,7 +237,9 @@ describe("seerr_server_settings", () => {
     const { plan } = await run("seerr_server_settings", { service: "radarr", id: 0, changes: { activeProfileId: 4, minimumAvailability: "inCinemas" } });
     const sent = w.seerr.serverPuts[0]!;
     expect(sent).toMatchObject({ service: "radarr", id: "0" });
-    expect(sent.body).toEqual({ ...fresh().seerr.servers.radarr[0], activeProfileId: 4, activeProfileName: "HD-1080p", minimumAvailability: "inCinemas" });
+    const { id: _id, ...expected } = fresh().seerr.servers.radarr[0];
+    expect(sent.body).toEqual({ ...expected, activeProfileId: 4, activeProfileName: "HD-1080p", minimumAvailability: "inCinemas" });
+    expect("id" in sent.body).toBe(false);
     expect(w.seerr.servers.radarr[0]).toMatchObject({ apiKey: "radarr-chiave-segretissima-1234567890", hostname: "192.168.0.171", activeDirectory: "/media/library/Movies", baseUrl: "/radarr" });
     expect(w.seerr.servers.sonarr[0]).toEqual(fresh().seerr.servers.sonarr[0]);
     const text = await visible(plan.planId);

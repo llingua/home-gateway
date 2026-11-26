@@ -220,7 +220,9 @@ export const seerrServerSettings: ActionDef = {
     const full = await readServer(ctx, service, id);
     // La PUT sostituisce l'oggetto: senza la chiave API la cancellerebbe. Se non si legge, non si scrive.
     if (typeof full.apiKey !== "string" || full.apiKey === "") throw new WriteError("apikey_unavailable", "Seerr non mostra la chiave del server: non si scrive per non cancellarla");
-    const body: Record<string, unknown> = { ...full, ...wanted };
+    // `id` è di sola lettura nella validazione di Seerr (sta già nell'indirizzo): inviarlo fa rifiutare la richiesta (HTTP 400).
+    const { id: _readOnlyId, ...rest } = full;
+    const body: Record<string, unknown> = { ...rest, ...wanted };
     for (const [field, nameField] of Object.entries(PROFILE_NAME_FIELD)) {
       if (field in wanted) body[nameField] = await profileName(ctx, service, wanted[field] as number);
     }
