@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "home-gateway",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+
+  // Nessun indirizzo pubblico di default: il Worker risponde solo sul dominio
+  // personalizzato, che sta dietro Cloudflare Access.
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "gateway.belinchebon.com", "custom_domain": true }],
+
+  "observability": { "enabled": true },
+
+  // Valori NON segreti. I segreti (chiavi API, token) si impostano con
+  // `wrangler secret put` o dalla dashboard: vedi README.md.
+  "vars": {
+    "ACCESS_TEAM_DOMAIN": "llhome.cloudflareaccess.com",
+    "RADARR_URL": "https://radarr.belinchebon.com",
+    "SONARR_URL": "https://sonarr.belinchebon.com",
+    "OVERSEERR_URL": "https://overseerr.belinchebon.com",
+    "PLEX_URL": "https://plex.belinchebon.com",
+    "QBITTORRENT_URL": "https://qbt.belinchebon.com"
+    // ACCESS_AUD e CLIENTS si aggiungono dopo aver creato l'app Access del gateway.
+  }
+}
