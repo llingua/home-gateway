@@ -218,7 +218,110 @@ const prowlarrIndexerEnabled: ActionDef = {
   },
 };
 
-export const ACTIONS: ActionDef[] = [qbittorrentPreferences, prowlarrIndexerEnabled, ...ARR_ACTIONS, ...CLEANUPARR_ACTIONS];
+// --- Prowlarr: obiettivi di semina di un indexer -----------------------------------------------------------------------
+
+/** Voci di `fields` che si possono cambiare: solo queste tre, per nome esatto. Il resto dell'array (chiavi, cookie, indirizzi) passa intatto. */
+const SEED_FIELD_NAMES: Record<string, string> = {
+  seedRatio: "torrentBaseSettings.seedRatio",
+  seedTimeMinutes: "torrentBaseSettings.seedTime",
+  packSeedTimeMinutes: "torrentBaseSettings.packSeedTime",
+};
+
+const prowlarrSeedGoals: ActionDef = {
+  name: "prowlarr_indexer_seed_goals",
+  services: ["prowlarr"],
+  description:
+    "Prowlarr: imposta gli obiettivi di semina di un indexer, cioè il rapporto (seedRatio, 0-100) e i minuti di semina per i singoli torrent (seedTimeMinutes) e per i pacchetti di stagione (packSeedTimeMinutes), 0-525600 (1 anno). " +
+    "Radarr, Sonarr e qBittorrent li usano per non rimuovere i torrent prima del tempo richiesto dal tracker. L'`id` si legge da get_config_prowlarr.",
+  scope: "config:write",
+  inputSchema: {
+    type: "object",
+    properties: {
+      indexerId: { type: "integer", minimum: 1 },
+      changes: {
+        type: "object",
+        properties: {
+          seedRatio: { type: "number", minimum: 0, maximum: 100 },
+          seedTimeMinutes: { type: "integer", minimum: 0, maximum: 525_600 },
+          packSeedTimeMinutes: { type: "integer", minimum: 0, maximum: 525_600 },
+        },
+        additionalProperties: false,
+      },
+    },
+    required: ["indexerId", "changes"],
+    additionalProperties: false,
+  },
+  parse(input) {
+    if (!isRecord(input) || Object.keys(input).some((key) => key !== "indexerId" && key !== "changes")) throw new WriteError("invalid_input", "Input non valido");
+    if (typeof input.indexerId !== "number" || !Number.isInteger(input.indexerId) || input.indexerId < 1) throw new WriteError("invalid_input", "indexerId deve essere un intero positivo");
+    if (!isRecord(input.changes)) throw new WriteError("invalid_input", "Serve un oggetto `changes`");
+    const out: Record<string, number> = {};
+    for (const [key, value] of Object.entries(input.changes)) {
+      if (!(key in SEED_FIELD_NAMES)) throw new WriteError("invalid_input", `Impostazione non modificabile: ${key}`);
+      if (typeof value !== "number" || !Number.isFinite(value)) throw new WriteError("invalid_input", `${key} deve essere un numero`);
+      if (key === "seedRatio") {
+        if (value < 0 || value > 100) throw new WriteError("invalid_input", "seedRatio deve essere tra 0 e 100");
+      } else if (!Number.isInteger(value) || value < 0 || value > 525_600) {
+        throw new WriteError("invalid_input", `${key} deve essere un intero tra 0 e 525600`);
+      }
+      out[key] = value;
+    }
+    if (Object.keys(out).length === 0) throw new WriteError("invalid_input", "Nessuna impostazione indicata");
+    return { indexerId: input.indexerId, changes: out };
+  },
+  async plan(ctx, input) {
+    const id = input.indexerId as number;
+    const wanted = input.changes as Record<string, number>;
+    const indexer = await readIndexer(ctx, id);
+    const fields = Array.isArray(indexer.fields) ? (indexer.fields as Array<{ name?: string; value?: unknown }>) : [];
+    const changes: PlanChange[] = [];
+    const before: Record<string, number> = {};
+    for (const [key, to] of Object.entries(wanted)) {
+      const field = fields.find((candidate) => candidate && candidate.name === SEED_FIELD_NAMES[key]);
+      if (!field) throw new WriteError("not_supported", `L'indexer "${indexer.name ?? id}" non ha l'impostazione ${key}`);
+      const from = typeof field.value === "number" ? field.value : null;
+      if (from === to) continue;
+      changes.push({ target: `Prowlarr: indexer "${indexer.name ?? id}" (id ${id})`, field: key, from, to });
+      if (from !== null) before[key] = from;
+    }
+    if (changes.length === 0) throw new WriteError("no_change", "Nessuna modifica: i valori sono già questi");
+    return {
+      summary: `Prowlarr: obiettivi di semina dell'indexer "${indexer.name ?? id}": ${changes.map((change) => change.field).join(", ")}`,
+      changes,
+      undo: Object.keys(before).length === changes.length ? { action: "prowlarr_indexer_seed_goals", input: { indexerId: id, changes: before } } : null,
+    };
+  },
+  async stillValid(ctx, input, changes) {
+    const fields = (await readIndexer(ctx, input.indexerId as number)).fields;
+    const list = Array.isArray(fields) ? (fields as Array<{ name?: string; value?: unknown }>) : [];
+    return changes.every((change) => {
+      const value = list.find((field) => field && field.name === SEED_FIELD_NAMES[change.field])?.value;
+      return (typeof value === "number" ? value : null) === change.from;
+    });
+  },
+  async apply(ctx, input) {
+    const id = input.indexerId as number;
+    const wanted = input.changes as Record<string, number>;
+    const { base, headers } = await prowlarrAccess(ctx);
+    // L'oggetto completo (con le credenziali) passa solo da qui, dal gateway a Prowlarr: non esce mai.
+    const full = await readIndexer(ctx, id);
+    const names = new Map(Object.entries(wanted).map(([key, value]) => [SEED_FIELD_NAMES[key]!, value]));
+    const fields = (Array.isArray(full.fields) ? (full.fields as Array<Record<string, unknown>>) : []).map((field) => (names.has(String(field.name)) ? { ...field, value: names.get(String(field.name)) } : field));
+    await request(ctx, `${base}/api/v1/indexer/${id}?forceSave=true`, {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ ...full, fields }),
+    });
+    const after = await readIndexer(ctx, id);
+    const list = Array.isArray(after.fields) ? (after.fields as Array<{ name?: string; value?: unknown }>) : [];
+    for (const [key, value] of Object.entries(wanted)) {
+      if (list.find((field) => field && field.name === SEED_FIELD_NAMES[key])?.value !== value) throw new Error("Verifica fallita: Prowlarr non riporta i nuovi valori");
+    }
+    return `Applicato e verificato: obiettivi di semina dell'indexer "${full.name ?? id}": ${Object.entries(wanted).map(([key, value]) => `${key}=${value}`).join(", ")}`;
+  },
+};
+
+export const ACTIONS: ActionDef[] = [qbittorrentPreferences, prowlarrIndexerEnabled, prowlarrSeedGoals, ...ARR_ACTIONS, ...CLEANUPARR_ACTIONS];
 
 export function findAction(name: string): ActionDef | undefined {
   return ACTIONS.find((action) => action.name === name);
