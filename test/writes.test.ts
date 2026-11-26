@@ -260,7 +260,7 @@ describe("approvazione: la decisione", () => {
     const post = (form: Record<string, string>, origin?: string | null) => approvalRequest(data.planId, { method: "POST", form, origin });
     expect((await post({ decision: "approve" })).status).toBe(403);
     expect((await post({ csrf: "sbagliato", decision: "approve" })).status).toBe(403);
-    expect((await post({ csrf: csrf.replace(/.$/, "0"), decision: "approve" })).status).toBe(403);
+    expect((await post({ csrf: csrf.slice(0, -1) + (csrf.endsWith("0") ? "1" : "0"), decision: "approve" })).status).toBe(403);
     expect((await post({ csrf, decision: "approve" }, "https://evil.example.com")).status).toBe(403);
     expect((await post({ csrf, decision: "approve" }, null)).status).toBe(403);
     expect((await post({ csrf, decision: "boh" })).status).toBe(403);
