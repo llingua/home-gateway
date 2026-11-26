@@ -31,9 +31,14 @@ Il segreto resta nella configurazione locale del tuo computer: non committarla.
 
 **Agent SDK e altri client MCP "streamable HTTP" con intestazioni personalizzate:** stesso indirizzo e stesse due intestazioni.
 
-**Connettori di claude.ai e sessioni cloud di Claude Code:** usano OAuth e non permettono intestazioni fisse, quindi con questa autenticazione **non si collegano ancora**. Opzioni, da decidere quando servono:
-- accettare il token di servizio in un'unica intestazione (impostazione dell'app Access) e salvarlo come credenziale della sessione, così l'agente chiama il gateway senza vedere il segreto;
-- aggiungere OAuth al gateway (Cloudflare Access come provider): più lavoro.
+**Sessioni cloud di Claude Code:** non permettono intestazioni fisse; si usa il token di servizio salvato come credenziale della sessione (il segreto non passa dalla chat).
+
+**App Claude (web, telefono, desktop) – connettore con OAuth:** indirizzo `https://mcp.belinchebon.com/mcp`.
+1. Impostazioni → Connettori → Aggiungi connettore personalizzato, URL `https://mcp.belinchebon.com/mcp`, senza altri campi.
+2. Si apre il login di Cloudflare Access: inserisci la tua email e il codice ricevuto. Solo le email dell'app Access `home-gateway mcp (OAuth)` entrano.
+3. Il connettore ha gli stessi strumenti dell'agente (lettura, proposte, `apply_plan`). Le modifiche richiedono comunque l'approvazione su `/approve` di `gateway.belinchebon.com`.
+
+Come funziona: `mcp.belinchebon.com` è un'app Access con *Managed OAuth* (Access fa da server OAuth, con registrazione automatica del client, consentita solo per i callback di claude.ai). Il Worker accetta il JWT di quell'app (`ACCESS_AUD_OAUTH`), pretende l'**email** e la cerca tra i clienti (`CLIENTS`) o tra gli `APPROVERS`; questi ultimi ottengono `media:read`, `config:read` e `config:write`. I token di servizio non entrano da qui. L'accesso dura 24 ore, poi si rifà il login.
 
 ## 3. Cosa chiedere
 
