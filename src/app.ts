@@ -2,7 +2,7 @@ import { authenticate, hasScope } from "./auth";
 import { HttpError } from "./errors";
 import { loadSection as loadSectionWith } from "./load";
 import { handleMcp } from "./mcp";
-import { findSection, SECTIONS, type SectionDef } from "./sections";
+import { findSection, sectionGroup, SECTIONS, type SectionDef, type SectionGroup } from "./sections";
 import type { CacheLike, Client, Env, Fetcher, SectionResult } from "./types";
 
 export interface AppDeps {
@@ -55,30 +55,51 @@ export async function handle(request: Request, env: Env, deps: AppDeps): Promise
       return handleMcp(request, client, { env, fetch: deps.fetch, cache: deps.cache, now: deps.now });
     }
 
+    const sectionPath = (section: SectionDef) =>
+      sectionGroup(section) === "config" ? `/v1/config/${section.name.replace(/^config_/, "")}` : `/v1/media/${section.name}`;
+
     if (path === "/v1/capabilities") {
       return json({
         client: client.name,
-        sections: SECTIONS.map(({ name, description, scope, ttl }) => ({
-          name,
-          description,
-          scope,
-          cacheSeconds: ttl,
-          allowed: hasScope(client, scope),
-          path: `/v1/media/${name}`,
+        sections: SECTIONS.map((section) => ({
+          name: section.name,
+          group: sectionGroup(section),
+          description: section.description,
+          scope: section.scope,
+          cacheSeconds: section.ttl,
+          allowed: hasScope(client, section.scope),
+          path: sectionPath(section),
         })),
       });
     }
 
-    if (path === "/v1/media/overview") {
+    // Panoramica di un gruppo: senza `?sections=` restituisce SOLO le sezioni di quel gruppo consentite al cliente
+    // (così un cliente con il solo permesso media non riceve un 403 perché esistono sezioni di configurazione).
+    // Con `?sections=` si chiedono sezioni precise (di qualsiasi gruppo): se una non è consentita, 403.
+    const overviewGroup: SectionGroup | null = path === "/v1/media/overview" ? "media" : path === "/v1/config/overview" ? "config" : null;
+    if (overviewGroup) {
       const requested = url.searchParams.get("sections");
-      const names = requested ? requested.split(",").map((name) => name.trim()).filter(Boolean) : SECTIONS.map((section) => section.name);
-
-      const selected = names.map((name) => {
-        const section = findSection(name);
-        if (!section) throw new HttpError(400, "unknown_section", `Sezione sconosciuta: ${name}`);
-        requireScope(client, section);
-        return section;
-      });
+      let selected: SectionDef[];
+      if (requested) {
+        selected = requested
+          .split(",")
+          .map((name) => name.trim())
+          .filter(Boolean)
+          .map((name) => {
+            const section = findSection(name);
+            if (!section) throw new HttpError(400, "unknown_section", `Sezione sconosciuta: ${name}`);
+            requireScope(client, section);
+            return section;
+          });
+      } else {
+        selected = SECTIONS.filter((section) => sectionGroup(section) === overviewGroup);
+        if (overviewGroup === "config") {
+          // La panoramica di configurazione è tutta o niente: senza permesso è un 403, non un elenco vuoto.
+          selected.forEach((section) => requireScope(client, section));
+        } else {
+          selected = selected.filter((section) => hasScope(client, section.scope));
+        }
+      }
 
       const results = await Promise.all(selected.map((section) => loadSection(section, env, deps)));
       const sections: Record<string, SectionResult> = {};
@@ -88,10 +109,11 @@ export async function handle(request: Request, env: Env, deps: AppDeps): Promise
       return json({ generatedAt: new Date((deps.now ?? Math.floor(Date.now() / 1000)) * 1000).toISOString(), sections });
     }
 
-    const single = /^\/v1\/media\/([a-z]+)$/.exec(path);
+    const single = /^\/v1\/(media|config)\/([a-z_]+)$/.exec(path);
     if (single) {
-      const section = findSection(single[1]!);
-      if (!section) throw new HttpError(404, "not_found", "Sezione non trovata");
+      const group = single[1] as SectionGroup;
+      const section = findSection(group === "config" ? `config_${single[2]}` : single[2]!);
+      if (!section || sectionGroup(section) !== group) throw new HttpError(404, "not_found", "Sezione non trovata");
       requireScope(client, section);
       return json(await loadSection(section, env, deps));
     }

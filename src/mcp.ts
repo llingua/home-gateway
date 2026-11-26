@@ -1,6 +1,6 @@
 import { hasScope } from "./auth";
 import { loadSection, type LoadDeps } from "./load";
-import { SECTIONS, findSection, type SectionDef } from "./sections";
+import { SECTIONS, findSection, sectionGroup, type SectionDef, type SectionGroup } from "./sections";
 import type { Client, Env, SectionResult } from "./types";
 
 /**
@@ -62,44 +62,65 @@ function sectionTool(section: SectionDef): Tool {
   };
 }
 
-const overviewTool: Tool = {
-  name: "get_overview",
-  description:
-    "Più sezioni in una sola chiamata (di default tutte quelle consentite). Ogni sezione ha uno `status`: " +
-    "ok, error (servizio non raggiungibile) o unconfigured (segreto mancante).",
-  scope: "media:read",
-  inputSchema: {
-    type: "object",
-    properties: {
-      sections: { type: "array", items: { type: "string", enum: sectionNames() }, description: "Sezioni richieste; se omesso, tutte." },
+function makeOverviewTool(name: string, group: SectionGroup, scope: string, description: string): Tool {
+  return {
+    name,
+    description,
+    scope,
+    inputSchema: {
+      type: "object",
+      properties: {
+        sections: { type: "array", items: { type: "string", enum: sectionNames() }, description: "Sezioni richieste; se omesso, tutte quelle del gruppo consentite." },
+      },
+      additionalProperties: false,
     },
-    additionalProperties: false,
-  },
-  run: (args, deps, client) => overview(args, deps, client),
-};
+    run: (args, deps, client) => overview(args, deps, client, group),
+  };
+}
 
-/** Il permesso della panoramica è quello di ogni singola sezione: lo si controlla sezione per sezione. */
-async function overview(args: Record<string, unknown>, deps: McpDeps, client: Client): Promise<{ text: string; isError?: boolean }> {
-  const requested = Array.isArray(args.sections) ? args.sections.filter((name): name is string => typeof name === "string") : null;
-  const names = requested && requested.length ? requested : sectionNames();
-  const sections: SectionDef[] = [];
-  for (const name of names) {
-    const section = findSection(name);
-    if (!section) return { text: `Sezione sconosciuta: ${name}`, isError: true };
-    sections.push(section);
+const overviewTool = makeOverviewTool(
+  "get_overview",
+  "media",
+  "media:read",
+  "Dati di stato di più sezioni in una sola chiamata (di default tutte quelle di stato consentite). " +
+    "Ogni sezione ha uno `status`: ok, error (servizio non raggiungibile) o unconfigured (segreto mancante).",
+);
+
+const configOverviewTool = makeOverviewTool(
+  "get_config_overview",
+  "config",
+  "config:read",
+  "Impostazioni dei servizi (profili di qualità, indexer, client di download, naming...) per l'audit, già ripulite da chiavi e password. " +
+    "Di default tutte le sezioni di configurazione consentite.",
+);
+
+/** Il permesso di ogni sezione è controllato sezione per sezione: la panoramica non è una scorciatoia. */
+async function overview(args: Record<string, unknown>, deps: McpDeps, client: Client, group: SectionGroup): Promise<{ text: string; isError?: boolean }> {
+  const requested = Array.isArray(args.sections) ? args.sections.filter((name): name is string => typeof name === "string") : [];
+  let selected: SectionDef[];
+
+  if (requested.length) {
+    selected = [];
+    for (const name of requested) {
+      const section = findSection(name);
+      if (!section) return { text: `Sezione sconosciuta: ${name}`, isError: true };
+      if (!hasScope(client, section.scope)) return { text: `Permesso mancante: ${section.scope}`, isError: true };
+      selected.push(section);
+    }
+  } else {
+    selected = SECTIONS.filter((section) => sectionGroup(section) === group && hasScope(client, section.scope));
+    if (selected.length === 0) return { text: "Nessuna sezione consentita", isError: true };
   }
-  const allowed = sections.filter((section) => hasScope(client, section.scope));
-  if (requested && allowed.length < sections.length) return { text: "Permesso mancante per una delle sezioni richieste", isError: true };
 
-  const results = await Promise.all(allowed.map((section) => loadSection(section, deps.env, deps)));
+  const results = await Promise.all(selected.map((section) => loadSection(section, deps.env, deps)));
   const out: Record<string, SectionResult> = {};
-  allowed.forEach((section, index) => {
+  selected.forEach((section, index) => {
     out[section.name] = results[index]!;
   });
   return { text: JSON.stringify({ generatedAt: new Date((deps.now ?? Math.floor(Date.now() / 1000)) * 1000).toISOString(), sections: out }) };
 }
 
-const TOOLS: Tool[] = [overviewTool, ...SECTIONS.map(sectionTool)];
+const TOOLS: Tool[] = [overviewTool, configOverviewTool, ...SECTIONS.map(sectionTool)];
 
 const allowedTools = (client: Client) => TOOLS.filter((tool) => hasScope(client, tool.scope));
 

@@ -30,7 +30,7 @@ export interface DownloadsSummary {
 const round1 = (value: number) => Math.round(value * 10) / 10;
 
 /** qBittorrent usa un login con cookie (SID): si accede a ogni richiesta; il risultato finisce in cache. */
-async function login(ctx: Ctx, base: string): Promise<string> {
+export async function login(ctx: Ctx, base: string): Promise<string> {
   const username = requireSecret(ctx.env.QBT_USERNAME, "qbittorrent");
   const password = requireSecret(ctx.env.QBT_PASSWORD, "qbittorrent");
 
@@ -74,5 +74,43 @@ export async function fetchDownloads(ctx: Ctx): Promise<DownloadsSummary> {
         etaSeconds: torrent.eta !== undefined && torrent.eta < 8_640_000 ? torrent.eta : null,
         state: torrent.state ?? "unknown",
       })),
+  };
+}
+
+/** Solo impostazioni di funzionamento: mai credenziali, indirizzi, proxy né programmi da eseguire. */
+const PREFERENCE_KEYS = [
+  "save_path", "temp_path_enabled", "temp_path", "auto_tmm_enabled", "incomplete_files_ext", "preallocate_all",
+  "max_connec", "max_connec_per_torrent", "max_uploads", "max_uploads_per_torrent",
+  "queueing_enabled", "max_active_downloads", "max_active_uploads", "max_active_torrents", "max_active_checking_torrents",
+  "dl_limit", "up_limit", "alt_dl_limit", "alt_up_limit", "scheduler_enabled",
+  "max_ratio_enabled", "max_ratio", "max_ratio_act", "max_seeding_time_enabled", "max_seeding_time",
+  "dht", "pex", "lsd", "encryption", "anonymous_mode", "upnp", "listen_port",
+  "add_trackers_enabled", "start_paused_enabled", "create_subfolder_enabled",
+] as const;
+
+export interface QbtConfig {
+  version: string | null;
+  preferences: Record<string, unknown>;
+  categories: Array<{ name: string; savePath: string }>;
+}
+
+export async function fetchQbtConfig(ctx: Ctx): Promise<QbtConfig> {
+  const base = baseUrl(ctx.env, "qbittorrent");
+  const cookie = await login(ctx, base);
+  const headers = { Cookie: cookie, Referer: base };
+
+  const [preferences, categories, version] = await Promise.all([
+    getJson<Record<string, unknown>>(ctx, `${base}/api/v2/app/preferences`, { headers }),
+    getJson<Record<string, { name?: string; savePath?: string }>>(ctx, `${base}/api/v2/torrents/categories`, { headers }),
+    request(ctx, `${base}/api/v2/app/version`, { headers }).then((response) => response.text()).catch(() => null),
+  ]);
+
+  const safe: Record<string, unknown> = {};
+  for (const key of PREFERENCE_KEYS) if (key in preferences) safe[key] = preferences[key];
+
+  return {
+    version: version ? version.trim() : null,
+    preferences: safe,
+    categories: Object.values(categories).map((category) => ({ name: category.name ?? "", savePath: category.savePath ?? "" })),
   };
 }

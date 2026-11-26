@@ -53,10 +53,15 @@ describe("accesso", () => {
 describe("capacità", () => {
   it("elenca le sezioni e quali sono consentite al cliente", async () => {
     const res = await handle(await authedRequest(key, "/v1/capabilities"), baseEnv(), { fetch: healthyNet(key).fetch, now: NOW });
-    const body = (await res.json()) as { client: string; sections: Array<{ name: string; allowed: boolean }> };
+    const body = (await res.json()) as { client: string; sections: Array<{ name: string; group: string; allowed: boolean }> };
     expect(body.client).toBe("homepage");
-    expect(body.sections.map((s) => s.name)).toEqual(["streams", "downloads", "requests", "recent", "queue", "upcoming", "library", "storage", "health", "indexers", "subtitles", "proxmox"]);
-    expect(body.sections.every((s) => s.allowed)).toBe(true);
+    const media = body.sections.filter((s) => s.group === "media");
+    expect(media.map((s) => s.name)).toEqual(["streams", "downloads", "requests", "recent", "queue", "upcoming", "library", "storage", "health", "indexers", "subtitles", "proxmox"]);
+    expect(media.every((s) => s.allowed)).toBe(true);
+    // La homepage ha solo media:read: le sezioni di configurazione ci sono nell'elenco ma non le sono consentite.
+    const config = body.sections.filter((s) => s.group === "config");
+    expect(config.map((s) => s.name)).toEqual(["config_radarr", "config_sonarr", "config_prowlarr", "config_qbittorrent"]);
+    expect(config.every((s) => !s.allowed)).toBe(true);
   });
 });
 

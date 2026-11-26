@@ -40,6 +40,18 @@ Tutte le richieste sono `GET` e richiedono autenticazione (tranne `/healthz`, ch
 | `/v1/media/indexers` | Indexer Prowlarr: totali, non attivi, avvisi | 2 min |
 | `/v1/media/subtitles` | Sottotitoli mancanti e problemi dei provider (Bazarr) | 5 min |
 | `/v1/media/proxmox` | Host Proxmox (CPU, RAM, uptime), guest, storage, ultimo backup | 30 s |
+| `/v1/config/overview` | **Audit**: impostazioni di tutti i servizi (permesso `config:read`) | 1 min |
+| `/v1/config/radarr`, `/v1/config/sonarr` | Profili di qualità, formati personalizzati, cartelle, client di download, indexer, naming, ritardi, tag | 1 min |
+| `/v1/config/prowlarr` | Indexer, applicazioni collegate, profili, client di download | 1 min |
+| `/v1/config/qbittorrent` | Percorsi, code, limiti, rapporto di condivisione, categorie | 1 min |
+
+### Permessi e audit delle configurazioni
+
+I dati di stato (`/v1/media/...`) richiedono il permesso `media:read`. Le **impostazioni dei servizi** (`/v1/config/...`) richiedono un permesso a parte, `config:read`, che la homepage e Home Assistant **non** hanno: servono a un agente (come Claude) per analizzare le configurazioni e proporre correzioni.
+
+- La panoramica `/v1/media/overview` non include mai le sezioni di configurazione e non dà 403 a chi non le può vedere.
+- Chiedere una sezione di configurazione senza permesso è un 403, anche passando da `?sections=` o da MCP.
+- **Nessun segreto esce**: gli adapter scelgono solo campi noti e innocui (whitelist) e, sopra, una pulizia finale (`src/scrub.ts`) toglie qualunque chiave che somigli a un segreto (`apiKey`, `password`, `fields`, `token`...) e oscura i valori che ne hanno l'aspetto. Indirizzi IP, credenziali di client di download e di indexer, proxy e programmi da eseguire non compaiono mai.
 
 Forma di una sezione:
 
@@ -49,7 +61,7 @@ Forma di una sezione:
 
 ### MCP (per Claude e altri agenti)
 
-`POST /mcp` (JSON-RPC 2.0, trasporto "streamable HTTP" senza sessioni): `initialize`, `ping`, `tools/list`, `tools/call`. Gli strumenti corrispondono alle sezioni (`get_streams`, `get_queue`, ...) più `get_overview`; ogni cliente vede solo quelli permessi. Sola lettura. Come collegarlo: `docs/CLIENT-CLAUDE.md`.
+`POST /mcp` (JSON-RPC 2.0, trasporto "streamable HTTP" senza sessioni): `initialize`, `ping`, `tools/list`, `tools/call`. Gli strumenti corrispondono alle sezioni (`get_streams`, `get_queue`, `get_config_radarr`...) più `get_overview` (stato) e `get_config_overview` (configurazioni); ogni cliente vede solo quelli permessi. Sola lettura. Come collegarlo: `docs/CLIENT-CLAUDE.md`.
 
 Descrizione completa in [`openapi.yaml`](openapi.yaml). Gli errori hanno la forma `{ "error": { "code": "...", "message": "..." } }`.
 

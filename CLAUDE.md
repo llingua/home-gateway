@@ -15,9 +15,11 @@ Divisione dei compiti: **Home Assistant** fa i controlli di disponibilità dalla
 | `src/index.ts` | Punto d'ingresso del Worker (collega `fetch` e Cache API a `handle`) |
 | `src/app.ts` | Router, autenticazione, controllo permessi, risposte JSON |
 | `src/auth.ts` | Verifica del JWT di Cloudflare Access (RS256, iss, aud, exp), elenco clienti (`CLIENTS`), permessi |
+| `src/scrub.ts` | Rete di sicurezza per le sezioni `config_*`: toglie chiavi dai nomi sospetti (`apiKey`, `password`, `fields`, `token`...) e oscura i valori che sembrano segreti |
+| `src/services/arr-config.ts` | Impostazioni di Radarr/Sonarr per l'audit (whitelist di campi); Prowlarr e qBittorrent hanno la loro funzione `fetch*Config` nei rispettivi file |
 | `src/mcp.ts` | Interfaccia MCP (`POST /mcp`, JSON-RPC 2.0 senza sessioni): strumenti di sola lettura derivati dalle sezioni, filtrati per permesso; rifiuta `Origin`, GET, richieste > 64 KB; registra solo cliente e strumento |
 | `src/load.ts` | Caricamento di una sezione con cache, condiviso da REST e MCP |
-| `src/sections.ts` | Le "capacità" esposte (streams, downloads, requests, recent, queue, upcoming, library, storage, health, indexers, subtitles, proxmox): ognuna con permesso, cache e funzione di caricamento |
+| `src/sections.ts` | Le "capacità" esposte (gruppo `media`: streams, downloads, requests, recent, queue, upcoming, library, storage, health, indexers, subtitles, proxmox; gruppo `config`, permesso `config:read`: config_radarr, config_sonarr, config_prowlarr, config_qbittorrent): ognuna con permesso, cache e funzione di caricamento |
 | `src/services/*.ts` | Adapter: `arr.ts` (Radarr/Sonarr, API v3 condivisa), `plex.ts`, `qbittorrent.ts`, `overseerr.ts`, `prowlarr.ts`, `bazarr.ts`, `proxmox.ts` |
 | `src/upstream.ts` | Chiamate ai servizi: credenziali Access, timeout, niente redirect, errori con messaggi statici |
 | `src/cache.ts` | Cache per sezione (solo risultati `ok`) |
@@ -29,12 +31,14 @@ Divisione dei compiti: **Home Assistant** fa i controlli di disponibilità dalla
 ## Regole da non rompere
 
 - **Sola lettura.** Una futura azione di scrittura richiede un permesso separato (`media:write`), conferma e registro: non aggiungerla di nascosto. Gli strumenti MCP hanno `readOnlyHint: true`: un tool di scrittura andrebbe dichiarato diversamente e avere un permesso suo.
-- **Privacy.** Mai nelle risposte: utenti, email, IP, chiavi, token, percorsi di configurazione. Gli adapter restituiscono solo ciò che serve a una dashboard. C'è un test che lo verifica (`non mostra mai utenti, indirizzi, chiavi o token`): estenderlo quando si aggiungono dati.
+- **Privacy.** Mai nelle risposte: utenti, email, IP, chiavi, token. I percorsi delle cartelle dei media compaiono solo nelle sezioni `config_*` (permesso `config:read`) e in `storage`. Gli adapter restituiscono solo ciò che serve a una dashboard. C'è un test che lo verifica (`non mostra mai utenti, indirizzi, chiavi o token`): estenderlo quando si aggiungono dati.
 - **Fail closed.** Senza `ACCESS_TEAM_DOMAIN` e `ACCESS_AUD` il Worker risponde 500 e non interroga nessun servizio.
 - **Errori statici.** I messaggi di errore verso i clienti non contengono indirizzi né dettagli dei servizi.
 - **Niente redirect.** Le chiamate ai servizi usano `redirect: "manual"`: un 3xx significa che Access ha chiesto il login.
 - **Segreti.** Solo come secret del Worker. Mai nel codice, nei test, nei log, nel README.
 - **Un servizio senza segreti non è un errore:** la sezione risulta `unconfigured`.
+
+- **Sezioni di configurazione (`config_*`).** Permesso `config:read` a parte, che la homepage e Home Assistant non hanno. Doppia difesa contro la fuga di segreti: (1) ogni adapter sceglie solo campi noti e innocui (whitelist; gli oggetti `indexer`/`downloadclient`/`applications` hanno un array `fields` con chiavi e password che non deve mai entrare); (2) `scrubSecrets` pulisce comunque ogni risposta `config_*`. Aggiungendo una sezione di configurazione: whitelist nell'adapter, fixture di test **con segreti piantati** nei punti dove il servizio vero li mette e test di non-fuga. Le panoramiche `media` non includono mai le sezioni `config_*`.
 
 ## Comandi
 
@@ -45,7 +49,7 @@ npm run dev      # wrangler dev, serve .dev.vars (vedi .dev.vars.example)
 npm run deploy
 ```
 
-Dopo ogni modifica alla sicurezza (`auth.ts`, controllo permessi, `upstream.ts`) rompi apposta la regola e verifica che i test falliscano: è così che si è controllato che i test siano utili.
+Dopo ogni modifica alla sicurezza (`auth.ts`, controllo permessi, `upstream.ts`, `mcp.ts`, `scrub.ts`, whitelist degli adapter di configurazione) rompi apposta la regola e verifica che i test falliscano: è così che si è controllato che i test siano utili.
 
 ## Stato
 
