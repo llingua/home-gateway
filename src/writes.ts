@@ -107,7 +107,7 @@ export async function applyPlan(w: WriteCtx, client: Client, planId: string) {
     if (!(await action.stillValid(ctx, plan.input, plan.changes))) {
       throw new WriteError("state_changed", "Lo stato è cambiato dopo la proposta: nulla è stato modificato, rifai la proposta");
     }
-    const message = await action.apply(ctx, plan.input);
+    const message = await action.apply(ctx, plan.input, plan.changes);
     const done: StoredPlan = { ...plan, status: "applied", appliedAt: w.now(), result: message };
     await w.store.savePlan(done);
     await w.store.audit({ event: "applicata", actor: client.name, planId: plan.id, action: plan.action, detail: message });

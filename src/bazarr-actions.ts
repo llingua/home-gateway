@@ -170,4 +170,117 @@ export const bazarrGeneral: ActionDef = {
   },
 };
 
-export const BAZARR_ACTIONS: ActionDef[] = [bazarrGeneral];
+// --- Assegnare un profilo lingua a serie e film che non ne hanno ---------------------------------------------------------
+
+/**
+ * Assegna un profilo lingua alle serie o ai film SENZA profilo. Non sovrascrive mai un profilo già assegnato, non avvia ricerche di
+ * sottotitoli (Bazarr ricalcola solo l'elenco dei mancanti) e agisce su un numero limitato di elementi per volta: il piano contiene
+ * l'elenco esatto di quelli che verranno toccati, e l'applicazione tocca ESATTAMENTE quelli approvati.
+ */
+const BATCH = 100;
+type Kind = "series" | "movies";
+const KINDS: Record<Kind, { idKey: string; label: string; queryIds: string; formIds: string }> = {
+  series: { idKey: "sonarrSeriesId", label: "serie", queryIds: "seriesid[]", formIds: "seriesid" },
+  movies: { idKey: "radarrId", label: "film", queryIds: "radarrid[]", formIds: "radarrid" },
+};
+
+interface Item {
+  id: number;
+  title: string;
+  profileId: number | null;
+}
+
+function parseItems(data: unknown, kind: Kind): { items: Item[]; total: number } {
+  if (!isRecord(data) || !Array.isArray(data.data)) throw new WriteError("unexpected_response", "Bazarr ha risposto in un formato inatteso");
+  const items: Item[] = [];
+  for (const raw of data.data) {
+    if (!isRecord(raw)) continue;
+    const id = raw[KINDS[kind].idKey];
+    if (typeof id !== "number" || !Number.isInteger(id)) continue;
+    const profile = raw.profileId;
+    items.push({ id, title: typeof raw.title === "string" ? raw.title.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 100) : `#${id}`, profileId: typeof profile === "number" ? profile : null });
+  }
+  return { items, total: typeof data.total === "number" ? data.total : items.length };
+}
+
+async function listWithoutProfile(ctx: Ctx, kind: Kind): Promise<{ items: Item[]; total: number }> {
+  const { base, headers } = access(ctx);
+  return parseItems(await getJson<unknown>(ctx, `${base}/api/${kind}?profileid=none&start=0&length=${BATCH}&sort_by=title&sort_order=asc`, { headers }), kind);
+}
+
+async function readItems(ctx: Ctx, kind: Kind, ids: number[]): Promise<Item[]> {
+  const { base, headers } = access(ctx);
+  const query = ids.map((id) => `${KINDS[kind].queryIds}=${id}`).join("&");
+  return parseItems(await getJson<unknown>(ctx, `${base}/api/${kind}?${query}&start=0&length=${ids.length}`, { headers }), kind).items;
+}
+
+const ITEM_FIELD = /^profileId\[(\d{1,9})\]$/;
+const idsOf = (changes: PlanChange[]) => changes.map((change) => ITEM_FIELD.exec(change.field)?.[1]).filter((id): id is string => !!id).map(Number);
+
+export const bazarrAssignProfile: ActionDef = {
+  name: "bazarr_assign_profile",
+  services: ["bazarr"],
+  description:
+    "Bazarr: assegna un profilo lingua alle serie (target series) o ai film (target movies) che NON hanno ancora un profilo. Non sovrascrive mai un profilo già assegnato e non avvia ricerche. " +
+    `Agisce su al massimo ${BATCH} elementi per volta (in ordine di titolo): il piano elenca esattamente quali; per gli altri si ripropone. Il profilo si indica con il suo id (get_config_bazarr, languageProfiles).`,
+  scope: "config:write",
+  inputSchema: {
+    type: "object",
+    properties: { target: { type: "string", enum: ["series", "movies"] }, profileId: { type: "integer", minimum: 1 } },
+    required: ["target", "profileId"],
+    additionalProperties: false,
+  },
+  parse(input) {
+    if (!isRecord(input) || Object.keys(input).some((key) => key !== "target" && key !== "profileId")) throw new WriteError("invalid_input", "Input non valido");
+    if (input.target !== "series" && input.target !== "movies") throw new WriteError("invalid_input", "target deve essere series o movies");
+    if (typeof input.profileId !== "number" || !Number.isInteger(input.profileId) || input.profileId < 1 || input.profileId > 100_000) throw new WriteError("invalid_input", "profileId deve essere l'id (intero positivo) di un profilo lingua");
+    return { target: input.target, profileId: input.profileId };
+  },
+  async plan(ctx, input): Promise<PlanDraft> {
+    const kind = input.target as Kind;
+    const profileId = input.profileId as number;
+    const profile = (await readProfiles(ctx)).filter(isRecord).find((p) => p.profileId === profileId);
+    if (!profile) throw new WriteError("invalid_input", `Il profilo lingua ${profileId} non esiste in Bazarr`);
+    const { items, total } = await listWithoutProfile(ctx, kind);
+    // Anche se Bazarr ignorasse il filtro o il limite, il gateway tocca solo elementi SENZA profilo e al massimo BATCH.
+    const missing = items.filter((item) => item.profileId === null).slice(0, BATCH);
+    if (missing.length === 0) throw new WriteError("no_change", `Nessun${kind === "series" ? "a serie" : " film"} senza profilo: non c'è niente da assegnare`);
+    const name = typeof profile.name === "string" ? profile.name : String(profileId);
+    const rest = Math.max(0, total - missing.length);
+    return {
+      summary: `Bazarr: assegna il profilo "${name}" a ${missing.length} ${KINDS[kind].label} senza profilo${rest ? ` (ne restano altri ${rest}: si ripropone)` : ""}`,
+      changes: missing.map((item) => ({ target: `Bazarr: ${KINDS[kind].label} "${item.title}"`, field: `profileId[${item.id}]`, from: null, to: profileId })),
+      undo: null,
+    };
+  },
+  async stillValid(ctx, input, changes) {
+    const ids = idsOf(changes);
+    if (ids.length === 0 || ids.length > BATCH) return false;
+    const current = await readItems(ctx, input.target as Kind, ids);
+    // Tutti gli elementi approvati esistono ancora e sono ancora senza profilo.
+    return ids.every((id) => current.find((item) => item.id === id)?.profileId === null);
+  },
+  async apply(ctx, input, changes) {
+    const kind = input.target as Kind;
+    const profileId = input.profileId as number;
+    const ids = idsOf(changes); // ESATTAMENTE quelli approvati
+    if (ids.length === 0 || ids.length > BATCH) throw new WriteError("invalid_input", "Elenco da assegnare non valido");
+    const { base, headers } = access(ctx);
+    const languagesBefore = JSON.stringify(await readProfiles(ctx));
+
+    const form = new URLSearchParams();
+    for (const id of ids) {
+      form.append(KINDS[kind].formIds, String(id));
+      form.append("profileid", String(profileId)); // in coppia, nella stessa posizione
+    }
+    await request(ctx, `${base}/api/${kind}`, { method: "POST", headers: { ...headers, "Content-Type": "application/x-www-form-urlencoded" }, body: form });
+
+    const after = await readItems(ctx, kind, ids);
+    const wrong = ids.filter((id) => after.find((item) => item.id === id)?.profileId !== profileId);
+    if (wrong.length) throw new Error(`Verifica fallita: ${wrong.length} ${KINDS[kind].label} non risultano con il nuovo profilo`);
+    if (JSON.stringify(await readProfiles(ctx)) !== languagesBefore) throw new Error("Verifica fallita: i profili lingua di Bazarr sono cambiati");
+    return `Applicato e verificato: profilo ${profileId} assegnato a ${ids.length} ${KINDS[kind].label}`;
+  },
+};
+
+export const BAZARR_ACTIONS: ActionDef[] = [bazarrGeneral, bazarrAssignProfile];

@@ -35,7 +35,8 @@ export interface ActionDef {
   /** Il valore attuale è ancora quello su cui è stato calcolato il piano? */
   stillValid(ctx: Ctx, input: Record<string, unknown>, changes: PlanChange[]): Promise<boolean>;
   /** Applica e verifica. Restituisce un messaggio breve. */
-  apply(ctx: Ctx, input: Record<string, unknown>): Promise<string>;
+  /** `changes` sono quelle approvate: un'azione su più elementi applica ESATTAMENTE quelle, non ricalcola. */
+  apply(ctx: Ctx, input: Record<string, unknown>, changes: PlanChange[]): Promise<string>;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
