@@ -1,5 +1,8 @@
 import { ARR_ACTIONS } from "./arr-actions";
+import { BAZARR_ACTIONS } from "./bazarr-actions";
 import { CLEANUPARR_ACTIONS } from "./cleanuparr-actions";
+import { PLEX_ACTIONS } from "./plex-actions";
+import { SEERR_ACTIONS } from "./seerr-actions";
 import { WriteError } from "./errors";
 import { login } from "./services/qbittorrent";
 import type { PlanChange } from "./store";
@@ -321,7 +324,7 @@ const prowlarrSeedGoals: ActionDef = {
   },
 };
 
-export const ACTIONS: ActionDef[] = [qbittorrentPreferences, prowlarrIndexerEnabled, prowlarrSeedGoals, ...ARR_ACTIONS, ...CLEANUPARR_ACTIONS];
+export const ACTIONS: ActionDef[] = [qbittorrentPreferences, prowlarrIndexerEnabled, prowlarrSeedGoals, ...ARR_ACTIONS, ...CLEANUPARR_ACTIONS, ...PLEX_ACTIONS, ...SEERR_ACTIONS, ...BAZARR_ACTIONS];
 
 export function findAction(name: string): ActionDef | undefined {
   return ACTIONS.find((action) => action.name === name);

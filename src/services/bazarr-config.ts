@@ -41,6 +41,15 @@ export async function fetchBazarrProfiles(ctx: Ctx) {
   });
 }
 
+/** Lingue attive in Bazarr: solo i codici. */
+export async function fetchBazarrLanguages(ctx: Ctx) {
+  return list(await get(ctx, "/api/system/languages"), 200)
+    .filter(isRecord)
+    .filter((language) => language.enabled === true || language.enabled === 1)
+    .map((language) => (typeof language.code2 === "string" ? language.code2 : null))
+    .filter((code) => code !== null);
+}
+
 export async function fetchBazarrVersion(ctx: Ctx) {
   const raw = await get(ctx, "/api/system/status");
   const data = isRecord(raw) && isRecord(raw.data) ? raw.data : isRecord(raw) ? raw : {};
