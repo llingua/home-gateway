@@ -15,7 +15,7 @@ Divisione dei compiti: **Home Assistant** fa i controlli di disponibilità dalla
 | `src/index.ts` | Punto d'ingresso del Worker (collega `fetch` e Cache API a `handle`) |
 | `src/app.ts` | Router, autenticazione, controllo permessi, risposte JSON |
 | `src/auth.ts` | Verifica del JWT di Cloudflare Access (RS256, iss, aud, exp), elenco clienti (`CLIENTS`), permessi |
-| `src/sections.ts` | Le "capacità" esposte (streams, downloads, requests, queue, upcoming, library, storage, health, indexers): ognuna con permesso, cache e funzione di caricamento |
+| `src/sections.ts` | Le "capacità" esposte (streams, downloads, requests, recent, queue, upcoming, library, storage, health, indexers): ognuna con permesso, cache e funzione di caricamento |
 | `src/services/*.ts` | Adapter: `arr.ts` (Radarr/Sonarr, API v3 condivisa), `plex.ts`, `qbittorrent.ts`, `overseerr.ts`, `prowlarr.ts` |
 | `src/upstream.ts` | Chiamate ai servizi: credenziali Access, timeout, niente redirect, errori con messaggi statici |
 | `src/cache.ts` | Cache per sezione (solo risultati `ok`) |
@@ -46,6 +46,10 @@ Dopo ogni modifica alla sicurezza (`auth.ts`, controllo permessi, `upstream.ts`)
 
 ## Stato
 
-v0.1.0: codice, test e documentazione pronti; **non ancora distribuito**. Fatti su Cloudflare: service token `gateway-upstream` e `client-homepage`, policy, app Access `home-gateway`, `ACCESS_AUD` e `CLIENTS` in `wrangler.jsonc`. Mancano: collegamento del repository (Workers Builds), segreti del Worker, primo deploy (vedi `docs/PRIMO-DEPLOY.md`). Adapter ancora da fare: Bazarr. `OVERSEER_API_KEY` (una R) è accettato come alias di `OVERSEERR_API_KEY`.
+In produzione su `gateway.belinchebon.com` (Cloudflare Workers Builds: ogni merge su `main` rilascia da solo con `npx wrangler deploy`). Dietro l'app Access `home-gateway`; unico cliente oggi: `client-homepage` (homepage). Il gateway entra nei servizi con il token `gateway-upstream` (policy "Gateway upstream" sulle loro app Access).
 
-CI: `npm ci` richiede `@types/node` esplicito nelle dipendenze (altrimenti il lockfile risulta incoerente su GitHub).
+- **Build di anteprima disattivate** (`previews_enabled: false` nelle impostazioni Workers Builds): su un Worker nuovo Cloudflare userebbe `wrangler preview`, che richiede un blocco `previews` e crea URL pubblici. Se si riattivano, aggiungere `"previews": {}` a `wrangler.jsonc` e proteggere gli URL con Access.
+- I segreti dei servizi li imposta l'utente dalla dashboard (Settings → Variables and Secrets). `OVERSEER_API_KEY` (una R) è accettato come alias di `OVERSEERR_API_KEY`.
+- Nuovo cliente = un service token in Access, una riga in `CLIENTS` (`wrangler.jsonc`) e il token nella policy "Gateway clients" dell'app `home-gateway`. Guida per Home Assistant: `docs/CLIENT-HOME-ASSISTANT.md`.
+- Adapter ancora da fare: Bazarr.
+- CI: `npm ci` richiede `@types/node` esplicito nelle dipendenze (altrimenti il lockfile risulta incoerente su GitHub).

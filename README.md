@@ -31,6 +31,7 @@ Tutte le richieste sono `GET` e richiedono autenticazione (tranne `/healthz`, ch
 | `/v1/media/streams` | Riproduzioni Plex in corso | 15 s |
 | `/v1/media/downloads` | Velocità e stato dei torrent | 15 s |
 | `/v1/media/requests` | Richieste e problemi Overseerr (contatori) | 60 s |
+| `/v1/media/recent` | Ultimo film o serie reso disponibile (solo titolo) | 5 min |
 | `/v1/media/queue` | Code Radarr/Sonarr | 30 s |
 | `/v1/media/upcoming` | Prossime uscite (30 giorni) | 10 min |
 | `/v1/media/library` | Elementi nelle librerie Plex, contenuti ricercati | 10 min |
@@ -112,4 +113,4 @@ I test (`test/`) usano un finto "internet" e token Access firmati con una chiave
 npm run deploy
 ```
 
-Passi manuali la prima volta (dominio, app Access, token, segreti): vedi `docs/PRIMO-DEPLOY.md`.
+Il deploy di produzione parte da solo a ogni merge su `main` (Workers Builds). Le build di anteprima dei branch sono **disattivate**: creerebbero indirizzi pubblici. Passi della prima messa online: `docs/PRIMO-DEPLOY.md`. Come collegare Home Assistant: `docs/CLIENT-HOME-ASSISTANT.md`.

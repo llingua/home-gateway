@@ -176,6 +176,10 @@ export function healthyNet(key: TestKey): FakeNet {
   ]);
 
   net.json("https://overseerr.test/api/v1/request/count", { total: 40, movie: 30, tv: 10, pending: 2, approved: 1, declined: 3, processing: 34, available: 20 });
+  net.json("https://overseerr.test/api/v1/media", {
+    results: [{ mediaType: "movie", tmdbId: 11, mediaAddedAt: "2026-11-24T12:10:00.000Z", requestedBy: { email: "segreto@example.com" } }],
+  });
+  net.json("https://overseerr.test/api/v1/movie/11", { title: "Ti presento i Fotter" });
   net.json("https://overseerr.test/api/v1/issue/count", { total: 5, open: 1, closed: 4 });
   net.json("https://prowlarr.test/api/v1/indexerstatus", [
     { indexerId: 2, disabledTill: "2099-01-01T00:00:00Z" },

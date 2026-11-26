@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { NotConfigured, UpstreamError } from "../src/errors";
 import { fetchDiskSpace, fetchHealth, fetchQueue, fetchUpcoming, fetchWantedCount } from "../src/services/arr";
 import { fetchDownloads } from "../src/services/qbittorrent";
-import { fetchRequests } from "../src/services/overseerr";
+import { fetchLastAvailable, fetchRequests } from "../src/services/overseerr";
 import { fetchIndexers } from "../src/services/prowlarr";
 import { fetchLibraries, fetchStreams } from "../src/services/plex";
 import { baseEnv, FakeNet, healthyNet, makeKey } from "./helpers";
@@ -120,6 +120,35 @@ describe("Overseerr", () => {
     expect(await fetchRequests(ctx)).toEqual({
       pending: 2, processing: 34, approved: 1, available: 20, declined: 3, total: 40, movies: 30, tv: 10, issuesOpen: 1,
     });
+  });
+});
+
+describe("Overseerr: ultimo disponibile", () => {
+  it("restituisce titolo, tipo e data, senza dati di chi ha richiesto", async () => {
+    const { ctx } = await ctxFor();
+    const last = await fetchLastAvailable(ctx);
+    expect(last).toEqual({ title: "Ti presento i Fotter", type: "movie", addedAt: "2026-11-24T12:10:00.000Z" });
+    expect(JSON.stringify(last)).not.toContain("segreto");
+  });
+
+  it("per le serie usa il nome", async () => {
+    const net = new FakeNet()
+      .json("https://overseerr.test/api/v1/media", { results: [{ mediaType: "tv", tmdbId: 5 }] })
+      .json("https://overseerr.test/api/v1/tv/5", { name: "Serie X" });
+    expect(await fetchLastAvailable({ env: baseEnv(), fetch: net.fetch })).toMatchObject({ title: "Serie X", type: "tv" });
+  });
+
+  it("ripiega sull'ordinamento 'modified' se 'mediaAdded' non è supportato", async () => {
+    const net = new FakeNet()
+      .on(/\/api\/v1\/media\?.*sort=mediaAdded/, () => new Response("bad", { status: 400 }))
+      .json("https://overseerr.test/api/v1/media", { results: [{ mediaType: "movie", tmdbId: 1 }] })
+      .json("https://overseerr.test/api/v1/movie/1", { title: "Film" });
+    expect((await fetchLastAvailable({ env: baseEnv(), fetch: net.fetch }))?.title).toBe("Film");
+  });
+
+  it("senza risultati restituisce null", async () => {
+    const net = new FakeNet().json("https://overseerr.test/api/v1/media", { results: [] });
+    expect(await fetchLastAvailable({ env: baseEnv(), fetch: net.fetch })).toBeNull();
   });
 });
 

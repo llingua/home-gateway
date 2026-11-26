@@ -71,14 +71,14 @@ paths:
     get:
       summary: Una sezione
       description: >
-        Sezioni: streams (riproduzioni Plex), downloads (qBittorrent), requests (Overseerr),
+        Sezioni: streams (riproduzioni Plex), downloads (qBittorrent), requests (Overseerr), recent (ultimo contenuto disponibile),
         queue (code Radarr/Sonarr), upcoming (prossime uscite), library (librerie Plex e mancanti),
         storage (spazio libero), health (avvisi di salute), indexers (indexer Prowlarr).
       parameters:
         - name: section
           in: path
           required: true
-          schema: { type: string, enum: [streams, downloads, requests, queue, upcoming, library, storage, health, indexers] }
+          schema: { type: string, enum: [streams, downloads, requests, recent, queue, upcoming, library, storage, health, indexers] }
       responses:
         "200":
           description: sezione
