@@ -1,3 +1,4 @@
+import { handleApproval } from "./approval";
 import { authenticate, hasScope } from "./auth";
 import { HttpError } from "./errors";
 import { loadSection as loadSectionWith } from "./load";
@@ -43,6 +44,9 @@ export async function handle(request: Request, env: Env, deps: AppDeps): Promise
 
     // L'unica risposta senza autenticazione: serve solo a sapere che il Worker è vivo.
     if (path === "/healthz") return json({ ok: true, service: "home-gateway" });
+
+    // Pagina di approvazione delle modifiche: ha una sua autenticazione (persona, non token di servizio).
+    if (path.startsWith("/approve/")) return handleApproval(request, env, { fetch: deps.fetch, now: deps.now });
 
     // L'MCP usa POST; tutto il resto dell'API è in sola lettura (GET).
     if (request.method !== "GET" && path !== "/mcp") {

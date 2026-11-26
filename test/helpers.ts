@@ -1,4 +1,4 @@
-import type { CacheLike, Env, Fetcher } from "../src/types";
+import type { CacheLike, Env, Fetcher, KvLike } from "../src/types";
 
 export const TEAM = "team.cloudflareaccess.com";
 export const AUD = "aud-test-123";
@@ -90,6 +90,7 @@ export const CLIENTS = JSON.stringify({
   "no-scope-id": { name: "senza-permessi", scopes: [] },
   "Admin@Example.com": { name: "admin", scopes: ["*"] },
   "agent-id": { name: "agente", scopes: ["media:read", "config:read"] },
+  "writer-id": { name: "scrittore", scopes: ["media:read", "config:read", "config:write"] },
 });
 
 export const baseEnv = (extra: Partial<Env> = {}): Env => ({
@@ -278,4 +279,79 @@ function addConfigFixtures(net: FakeNet): void {
 
 export async function authedRequest(key: TestKey, path: string, claims: Record<string, unknown> = validClaims()): Promise<Request> {
   return new Request(`https://gateway.test${path}`, { headers: { "Cf-Access-Jwt-Assertion": await signJwt(key, claims) } });
+}
+
+
+/** Finto KV: tiene valori e metadati, ordina le chiavi come fa Cloudflare. Non simula la scadenza. */
+export class FakeKv implements KvLike {
+  readonly data = new Map<string, { value: string; metadata?: unknown; ttl?: number }>();
+  async get(key: string): Promise<string | null> {
+    return this.data.get(key)?.value ?? null;
+  }
+  async put(key: string, value: string, options?: { expirationTtl?: number; metadata?: unknown }): Promise<void> {
+    this.data.set(key, { value, metadata: options?.metadata, ttl: options?.expirationTtl });
+  }
+  async delete(key: string): Promise<void> {
+    this.data.delete(key);
+  }
+  async list(options?: { prefix?: string; limit?: number }) {
+    const keys = [...this.data.entries()]
+      .filter(([name]) => name.startsWith(options?.prefix ?? ""))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(0, options?.limit ?? 1000)
+      .map(([name, entry]) => ({ name, metadata: entry.metadata }));
+    return { keys };
+  }
+}
+
+export const APPROVAL_AUD = "aud-approvazione-456";
+export const APPROVER_EMAIL = "persona@example.test";
+
+export const writeEnv = (kv: FakeKv, extra: Partial<Env> = {}): Env =>
+  baseEnv({ STATE: kv, ACCESS_AUD_APPROVAL: APPROVAL_AUD, APPROVERS: `${APPROVER_EMAIL}, altra@example.test`, APPROVAL_SECRET: "segreto-csrf-di-prova", ...extra });
+
+/** Stato dei finti servizi che cambiano davvero (qBittorrent e Prowlarr). */
+export interface WriteState {
+  prefs: Record<string, unknown>;
+  indexers: Record<number, Record<string, unknown>>;
+  posts: Array<Record<string, unknown>>;
+  puts: Array<{ url: string; body: Record<string, unknown> }>;
+}
+
+export function writeState(): WriteState {
+  return {
+    prefs: { max_active_downloads: 3, max_active_uploads: 2, max_active_torrents: 3, dl_limit: 1_024_000_000, up_limit: 10_240_000, web_ui_password: "hash-segreto" },
+    indexers: {
+      3: { id: 3, name: "The Pirate Bay", enable: true, priority: 25, fields: [{ name: "apiKey", value: "chiave-indexer-segreta" }, { name: "baseUrl", value: "http://192.168.0.9/x" }] },
+      4: { id: 4, name: "<img src=x onerror=alert(1)>", enable: true, priority: 25, fields: [] },
+    },
+    posts: [],
+    puts: [],
+  };
+}
+
+export function writeNet(key: TestKey, state: WriteState, options: { ignoreSetPreferences?: boolean } = {}): FakeNet {
+  const net = new FakeNet();
+  net.json(JWKS_URL, { keys: [key.jwk] });
+  net.on("https://qbt.test/api/v2/auth/login", () => new Response("Ok.", { headers: { "set-cookie": "SID=abc123; HttpOnly" } }));
+  net.on("https://qbt.test/api/v2/app/preferences", () => new Response(JSON.stringify(state.prefs), { headers: { "Content-Type": "application/json" } }));
+  net.on("https://qbt.test/api/v2/app/setPreferences", async (request) => {
+    const form = await request.formData();
+    const changes = JSON.parse(String(form.get("json"))) as Record<string, unknown>;
+    state.posts.push(changes);
+    if (!options.ignoreSetPreferences) Object.assign(state.prefs, changes);
+    return new Response("");
+  });
+  net.on(/^https:\/\/prowlarr\.test\/api\/v1\/indexer\/(\d+)/, async (request) => {
+    const id = Number(/indexer\/(\d+)/.exec(request.url)![1]);
+    if (request.method === "PUT") {
+      const body = (await request.json()) as Record<string, unknown>;
+      state.puts.push({ url: request.url, body });
+      state.indexers[id] = body;
+      return new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } });
+    }
+    const indexer = state.indexers[id];
+    return indexer ? new Response(JSON.stringify(indexer), { headers: { "Content-Type": "application/json" } }) : new Response("no", { status: 404 });
+  });
+  return net;
 }

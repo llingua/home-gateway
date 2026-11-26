@@ -64,7 +64,7 @@ export async function fetchProwlarrConfig(ctx: Ctx) {
 
   return {
     version: status.version ?? null,
-    indexers: indexers.map((indexer) => pickSafe(indexer, ["name", "implementation", "protocol", "privacy", "enable", "priority", "appProfileId"])),
+    indexers: indexers.map((indexer) => pickSafe(indexer, ["id", "name", "implementation", "protocol", "privacy", "enable", "priority", "appProfileId"])),
     applications: applications.map((app) => pickSafe(app, ["name", "implementation", "syncLevel"])),
     appProfiles: profiles.map((profile) => pickSafe(profile, ["name", "enableRss", "enableAutomaticSearch", "enableInteractiveSearch", "minimumSeeders"])),
     downloadClients: clients.map((client) => pickSafe(client, ["name", "implementation", "protocol", "enable", "priority"])),
