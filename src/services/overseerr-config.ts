@@ -38,6 +38,27 @@ export async function fetchOverseerrJobs(ctx: Ctx) {
   return list(await get(ctx, "/api/v1/settings/jobs"), 50).map((job) => pickSimple(job, ["id", "name", "type", "interval", "cronSchedule", "running"]));
 }
 
+/**
+ * Controllo di connessione dei server Radarr collegati: Seerr chiede a Radarr l'elenco dei profili con la chiave che ha salvata.
+ * Se risponde, la chiave è intatta e Radarr è raggiungibile. Si restituiscono solo id, esito e quanti profili (mai nomi di host né chiavi).
+ * (Seerr offre questa verifica solo per Radarr.)
+ */
+export async function fetchOverseerrConnections(ctx: Ctx) {
+  const servers = list(await get(ctx, "/api/v1/settings/radarr"), 20).filter(isRecord);
+  const out: Array<{ service: "radarr"; id: number; reachable: boolean; profiles: number | null }> = [];
+  for (const server of servers) {
+    const id = server.id;
+    if (typeof id !== "number" || !Number.isInteger(id) || id < 0 || id > 1000) continue;
+    try {
+      const profiles = await get(ctx, `/api/v1/settings/radarr/${id}/profiles`);
+      out.push({ service: "radarr", id, reachable: Array.isArray(profiles), profiles: Array.isArray(profiles) ? profiles.length : null });
+    } catch {
+      out.push({ service: "radarr", id, reachable: false, profiles: null });
+    }
+  }
+  return out;
+}
+
 export async function fetchOverseerrVersion(ctx: Ctx) {
   return pickSimple(await get(ctx, "/api/v1/status"), ["version", "commitTag", "updateAvailable", "commitsBehind", "restartRequired"]);
 }
