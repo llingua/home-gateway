@@ -3,6 +3,8 @@ import { hasScope } from "./auth";
 import { WriteError } from "./errors";
 import { loadSection, type LoadDeps } from "./load";
 import { MAX_MEDIA_REQUESTS_PER_DAY, requestMedia, searchMedia } from "./media";
+import { diagnoseMovie, diagnoseSeries, listMissing } from "./diagnose";
+import { NotConfigured, UpstreamError } from "./errors";
 import { SECTIONS, findSection, sectionGroup, type SectionDef, type SectionGroup } from "./sections";
 import { Store } from "./store";
 import { applyPlan, auditLog, getPlanView, propose, proposeUndo, type WriteCtx } from "./writes";
@@ -158,7 +160,51 @@ const searchTool: Tool = {
     }),
 };
 
-const TOOLS: Tool[] = [overviewTool, configOverviewTool, searchTool, ...SECTIONS.map(sectionTool)];
+/** Diagnosi in sola lettura: gli errori dei servizi diventano un messaggio breve, mai un crash. */
+async function diagnoseCall(run: () => Promise<unknown>): Promise<{ text: string; isError?: boolean }> {
+  try {
+    return { text: JSON.stringify(await run()) };
+  } catch (error) {
+    if (error instanceof WriteError) return { text: `${error.code}: ${error.message}`, isError: true };
+    if (error instanceof NotConfigured) return { text: `unconfigured: ${error.message}`, isError: true };
+    if (error instanceof UpstreamError) return { text: `upstream_error: ${error.message}`, isError: true };
+    throw error;
+  }
+}
+
+const target = { query: { type: "string", minLength: 2, maxLength: 100, description: "Titolo (o parte)." }, id: { type: "integer", minimum: 1, description: "Id in Radarr/Sonarr, se più titoli corrispondono." } };
+
+const diagnoseTools: Tool[] = [
+  {
+    name: "list_missing",
+    description:
+      "Elenco di ciò che manca: per Radarr i film monitorati senza file (con stato e disponibilità minima), per Sonarr le serie con episodi già usciti mancanti (conteggio e più recente). " +
+      "Punto di partenza per capire cosa non si scarica.",
+    scope: "config:read",
+    inputSchema: { type: "object", properties: { service: { type: "string", enum: ["radarr", "sonarr"] }, limit: { type: "integer", minimum: 1, maximum: 100 } }, required: ["service"], additionalProperties: false },
+    run: (args, deps) => diagnoseCall(() => listMissing({ env: deps.env, fetch: deps.fetch }, args.service, args.limit)),
+  },
+  {
+    name: "diagnose_movie",
+    description:
+      "Perché un film non si scarica: stato in Radarr (monitorato, disponibilità minima, file presente, profilo), coda, storia (prese, fallimenti con motivo), sottotitoli in Bazarr e suggerimenti. " +
+      "Con searchReleases: true interroga gli indexer come la ricerca interattiva (non scarica nulla) e riassume cosa trovano e perché le uscite vengono scartate. Sola lettura.",
+    scope: "config:read",
+    inputSchema: { type: "object", properties: { ...target, searchReleases: { type: "boolean" } }, additionalProperties: false },
+    run: (args, deps) => diagnoseCall(() => diagnoseMovie({ env: deps.env, fetch: deps.fetch }, args)),
+  },
+  {
+    name: "diagnose_series",
+    description:
+      "Stato di una serie in Sonarr: stagioni ed episodi completi o mancanti (solo quelli già usciti), monitoraggio, tipo (standard/giornaliera/anime), coda, storia, sottotitoli in Bazarr (profilo lingua ed episodi senza sottotitoli) e suggerimenti. " +
+      "Con searchReleases: true cerca negli indexer l'episodio mancante più recente, o una stagione con season, senza scaricare nulla. Sola lettura.",
+    scope: "config:read",
+    inputSchema: { type: "object", properties: { ...target, searchReleases: { type: "boolean" }, season: { type: "integer", minimum: 0, maximum: 500 } }, additionalProperties: false },
+    run: (args, deps) => diagnoseCall(() => diagnoseSeries({ env: deps.env, fetch: deps.fetch, now: deps.now }, args)),
+  },
+];
+
+const TOOLS: Tool[] = [overviewTool, configOverviewTool, searchTool, ...diagnoseTools, ...SECTIONS.map(sectionTool)];
 
 // --- Scritture (livello 3): solo se il gateway ha l'archivio dei piani ----------------------------------------
 

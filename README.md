@@ -21,6 +21,7 @@ Livello di integrazione di casa Belinchebon: **un unico punto di accesso** a Ple
 | **Stato** | Riproduzioni Plex, download, code, richieste, sottotitoli mancanti, salute, spazio, Proxmox: un dato per capacità, non per servizio. |
 | **Audit delle configurazioni** | Legge le impostazioni di tutti i servizi (profili di qualità, indexer, regole di Cleanuparr, trascodifica di Plex, backup di Proxmox…) già ripulite da chiavi, password e indirizzi, così un agente può analizzarle e proporre correzioni. |
 | **Cercare e aggiungere film e serie** | `search_media` cerca per titolo; `request_media` crea una richiesta Overseerr dopo il sì della persona in chat. |
+| **Capire perché non si scarica** | `list_missing`, `diagnose_movie`, `diagnose_series`: mancanti, stagioni complete, storia dei fallimenti, coda, sottotitoli e, a richiesta, ricerca delle uscite con i motivi di scarto. Sola lettura. |
 | **Modifiche con approvazione** | Un agente *propone*, **una persona approva** nel browser, l'agente *applica* e il gateway verifica. Per qBittorrent, Radarr, Sonarr, Prowlarr, Cleanuparr, Bazarr, Plex e Seerr. |
 | **Proxmox** | Solo lettura. Si modifica a mano: il gateway non può scrivergli. |
 
@@ -100,6 +101,7 @@ La panoramica `/v1/media/overview` non include mai le sezioni di configurazione 
 
 - **Letture:** una per sezione (`get_streams`, `get_queue`, `get_config_radarr`…), più `get_overview` e `get_config_overview`.
 - **Cercare e aggiungere:** `search_media` (`media:read`) e `request_media` (`media:request`).
+- **Diagnosi:** `list_missing`, `diagnose_movie`, `diagnose_series` (`config:read`, sola lettura; con `searchReleases: true` Radarr/Sonarr interrogano gli indexer, fino a 60 s).
 - **Modifiche:** `propose_<azione>`, `propose_undo`, `apply_plan`, `get_plan`, `get_audit_log` (compaiono solo se esiste l'archivio `STATE` e il cliente ha i permessi).
 
 Come collegarlo: `docs/CLIENT-CLAUDE.md`.
