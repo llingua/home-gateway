@@ -1,4 +1,5 @@
 import { WriteError } from "./errors";
+import { readBlocklist } from "./arr-blocklist";
 import { scrubSecrets, stripAddresses } from "./scrub";
 import { arrAccess, type ArrService } from "./services/arr";
 import { baseUrl, getJson, requireSecret } from "./upstream";
@@ -96,6 +97,7 @@ function queueItems(raw: unknown) {
   return list(raw, 50)
     .filter(isRecord)
     .map((item) => ({
+      ...(typeof item.id === "number" ? { queueId: item.id } : {}),
       release: str(item.title),
       status: str(item.status),
       trackedStatus: str(item.trackedDownloadStatus),
@@ -183,6 +185,18 @@ async function subtitlesForMovie(ctx: Ctx, radarrId: number) {
 
 // --- Elenco di ciò che manca -------------------------------------------------------------------------------------
 
+type Blocked = Awaited<ReturnType<typeof blocklistOf>>;
+
+/** Voci di blocklist di un film o di una serie (le più recenti). Se la blocklist non si legge, si dice e basta. */
+async function blocklistOf(ctx: Ctx, service: ArrService, mediaId: number) {
+  try {
+    const entries = (await readBlocklist(ctx, service, false)).filter((e) => e.mediaId === mediaId);
+    return { total: entries.length, entries: entries.slice(0, 15).map(({ title: _t, mediaId: _m, ...rest }) => rest) };
+  } catch {
+    return { total: 0, entries: [], note: "Blocklist non leggibile" };
+  }
+}
+
 export async function listMissing(ctx: Ctx, rawService: unknown, rawLimit: unknown) {
   if (rawService !== "radarr" && rawService !== "sonarr") throw new WriteError("invalid_input", "service deve essere radarr o sonarr");
   const limit = typeof rawLimit === "number" && Number.isInteger(rawLimit) ? Math.min(Math.max(rawLimit, 1), 100) : 30;
@@ -225,6 +239,7 @@ export async function diagnoseMovie(ctx: Ctx, args: Record<string, unknown>) {
   const { item: movie, candidates } = pick(movies, args.query, args.id);
   if (!movie) return clean({ candidates, hint: "Più film corrispondono: ripeti con l'id giusto." });
   const id = movie.id as number;
+  const blockedP = blocklistOf(ctx, "radarr", id);
   const [profiles, history, queue] = await Promise.all([
     profileNames(ctx, "radarr"),
     arrGet(ctx, "radarr", `/api/v3/history/movie?movieId=${id}`).catch(() => []),
@@ -248,7 +263,10 @@ export async function diagnoseMovie(ctx: Ctx, args: Record<string, unknown>) {
     else if (releases.approved === 0) hints.push(`Trovate ${releases.found} uscite ma tutte scartate: vedi topRejectionReasons.`);
     else hints.push(`Ci sono ${releases.approved} uscite accettabili: se non parte, controlla ritardi (profilo di ritardo) e coda.`);
   }
+  const blocked: Blocked = await blockedP;
+  if (blocked.total) hints.push(`${blocked.total} uscite di questo film sono in blocklist: non verranno riprese finché non le togli (propose_arr_blocklist_remove).`);
   return clean({
+    blocklist: blocked,
     movie: {
       id, title: str(movie.title), year: num(movie.year), monitored: movie.monitored === true, hasFile: movie.hasFile === true, status: str(movie.status),
       minimumAvailability: str(movie.minimumAvailability), isAvailable: movie.isAvailable === true,
@@ -273,6 +291,7 @@ export async function diagnoseSeries(ctx: Ctx, args: Record<string, unknown>) {
   const { item: series, candidates } = pick(all, args.query, args.id);
   if (!series) return clean({ candidates, hint: "Più serie corrispondono: ripeti con l'id giusto." });
   const id = series.id as number;
+  const blockedP = blocklistOf(ctx, "sonarr", id);
   const [profiles, episodesRaw, history, queue] = await Promise.all([
     profileNames(ctx, "sonarr"),
     arrGet(ctx, "sonarr", `/api/v3/episode?seriesId=${id}`),
@@ -342,7 +361,10 @@ export async function diagnoseSeries(ctx: Ctx, args: Record<string, unknown>) {
   }
 
   const stats = isRecord(series.statistics) ? series.statistics : {};
+  const blocked: Blocked = await blockedP;
+  if (blocked.total) hints.push(`${blocked.total} uscite di questa serie sono in blocklist: non verranno riprese finché non le togli (propose_arr_blocklist_remove).`);
   return clean({
+    blocklist: blocked,
     series: {
       id, title: str(series.title), year: num(series.year), monitored: series.monitored === true, status: str(series.status), seriesType: str(series.seriesType),
       qualityProfile: profiles.get(series.qualityProfileId as number) ?? null,
