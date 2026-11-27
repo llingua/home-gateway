@@ -93,6 +93,65 @@ describe("qBittorrent", () => {
     const net = new FakeNet().on("https://qbt.test/api/v2/auth/login", () => new Response("Fails."));
     await expect(fetchDownloads({ env: baseEnv(), fetch: net.fetch })).rejects.toThrow("Login qBittorrent rifiutato");
   });
+
+  describe("login qBittorrent 5.x", () => {
+    const LOGIN = "https://qbt.test/api/v2/auth/login";
+    const withLogin = async (response: () => Response) => {
+      const { net, ctx } = await ctxFor();
+      net.first(LOGIN, response);
+      return { net, ctx };
+    };
+    const cookieSent = (net: FakeNet) => net.calls.find((c) => c.url.endsWith("/api/v2/torrents/info"))!.headers.get("cookie");
+
+    it("5.2+: 204 senza corpo e cookie QBT_SID_<porta>, rimandato con lo stesso nome", async () => {
+      const { net, ctx } = await withLogin(() => new Response(null, { status: 204, headers: { "set-cookie": "QBT_SID_8080=nuovo5x; HttpOnly; SameSite=Strict; path=/" } }));
+      expect((await fetchDownloads(ctx)).total).toBe(5);
+      expect(cookieSent(net)).toBe("QBT_SID_8080=nuovo5x");
+    });
+
+    it("200 \"Ok.\" con cookie QBT_SID_<porta>", async () => {
+      const { net, ctx } = await withLogin(() => new Response("Ok.", { headers: { "set-cookie": "QBT_SID_443=abc; HttpOnly" } }));
+      await fetchDownloads(ctx);
+      expect(cookieSent(net)).toBe("QBT_SID_443=abc");
+    });
+
+    it("più cookie nella risposta: prende quello di sessione, con precedenza al nome della 5.x", async () => {
+      const headers = new Headers();
+      headers.append("set-cookie", "altro=zzz; Expires=Wed, 01 Jan 2030 00:00:00 GMT; path=/");
+      headers.append("set-cookie", "SID=vecchio; HttpOnly");
+      headers.append("set-cookie", "QBT_SID_8080=giusto; HttpOnly");
+      const { net, ctx } = await withLogin(() => new Response(null, { status: 204, headers }));
+      await fetchDownloads(ctx);
+      expect(cookieSent(net)).toBe("QBT_SID_8080=giusto");
+    });
+
+    it("non scambia per sessione un cookie con un nome simile", async () => {
+      const { ctx } = await withLogin(() => new Response(null, { status: 204, headers: { "set-cookie": "XSID=no; path=/, QBT_SID_x=no" } }));
+      await expect(fetchDownloads(ctx)).rejects.toThrow("Login qBittorrent rifiutato");
+    });
+
+    it("restano errori: 200 \"Fails.\", 401, 403, 204 senza cookie, 200 vuoto, 204 con un corpo", async () => {
+      const cases: Array<() => Response> = [
+        () => new Response("Fails.", { headers: { "set-cookie": "QBT_SID_8080=x" } }),
+        () => new Response("Unauthorized", { status: 401 }),
+        () => new Response("Forbidden", { status: 403, headers: { "set-cookie": "QBT_SID_8080=x" } }),
+        () => new Response(null, { status: 204 }),
+        () => new Response("", { headers: { "set-cookie": "QBT_SID_8080=x" } }),
+        () => new Response("Fails.", { status: 202, headers: { "set-cookie": "QBT_SID_8080=x" } }),
+      ];
+      for (const response of cases) {
+        const { net, ctx } = await withLogin(response);
+        await expect(fetchDownloads(ctx)).rejects.toThrow("Login qBittorrent rifiutato");
+        expect(net.calls.some((c) => c.url.endsWith("/api/v2/torrents/info"))).toBe(false);
+      }
+    });
+
+    it("conta come fermi sia gli stati 4.x (pausedDL/UP) sia i 5.x (stoppedDL/UP)", async () => {
+      const { net, ctx } = await ctxFor();
+      net.first("https://qbt.test/api/v2/torrents/info", () => Response.json([{ state: "pausedDL" }, { state: "pausedUP" }, { state: "stoppedDL" }, { state: "stoppedUP" }, { state: "stalledUP" }]));
+      expect(await fetchDownloads(ctx)).toMatchObject({ total: 5, paused: 4, seeding: 1 });
+    });
+  });
 });
 
 describe("Prowlarr", () => {
