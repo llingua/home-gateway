@@ -2,7 +2,7 @@
 
 Il gateway espone i suoi dati anche come **server MCP** (Model Context Protocol) su `POST https://gateway.belinchebon.com/mcp`. Un agente scopre da solo gli strumenti disponibili (`get_overview`, `get_streams`, `get_queue`, `get_proxmox`...) e li usa per rispondere a domande come "cosa sta scaricando il server?" o "perché Radarr non trova niente?".
 
-**Oggi tutti gli strumenti sono di sola lettura.** Il gateway non modifica nulla: le azioni di scrittura, quando ci saranno, avranno un permesso separato.
+Gli strumenti di lettura non modificano nulla. Le modifiche passano sempre dall'approvazione nel browser (vedi sotto); l'unica eccezione è la richiesta di un film o di una serie a Overseerr, che chiede la tua conferma in chat.
 
 ## 1. Token dedicato (lo crei tu: il segreto si vede una volta sola)
 
@@ -63,6 +63,12 @@ Come funziona: `mcp.belinchebon.com` è un'app Access con *Managed OAuth* (Acces
 - "Cerca *Dune* e dimmi se ce l'ho già." → `search_media`: titolo, anno, trama breve e stato (non richiesto, in attesa, in download, disponibile).
 - "Aggiungilo." → Claude ti ripete titolo e anno e chiede conferma; solo dopo il tuo sì crea la richiesta Overseerr. Per le serie puoi scegliere le stagioni. Massimo 10 richieste al giorno; se cambi idea, annulli la richiesta da Overseerr.
 
+**Capire perché qualcosa non si scarica** (sola lettura):
+- "Quali film mancano su Radarr e perché non si scaricano?" → `list_missing`, poi `diagnose_movie` sui singoli film.
+- "Perché *The Big Bang Theory* non si scarica? Quante stagioni ho complete?" → `diagnose_series`: stagioni complete e mancanti (contando solo gli episodi già usciti), stagioni non monitorate, storia dei download falliti, coda.
+- "Cerca adesso le uscite disponibili" → con `searchReleases` Sonarr/Radarr interrogano gli indexer (può richiedere fino a un minuto) e Claude vede quante uscite ci sono e perché vengono scartate (qualità non nel profilo, punteggio dei formati troppo basso, lingua...).
+- Sottotitoli: per ogni film o serie dice il profilo lingua di Bazarr e quanti sottotitoli mancano.
+
 **Configurare gli strumenti** (con approvazione nel browser):
 - qBittorrent: limiti di coda, connessioni e banda; come si contano i torrent lenti.
 - Radarr e Sonarr: profili di ritardo, attivazione e priorità di indexer e client di download, soglie dei profili di qualità e punteggi dei formati personalizzati.
@@ -80,7 +86,7 @@ Con `config:read` l'agente può analizzare le configurazioni e proporre correzio
 - "Gli indexer di Prowlarr sono sincronizzati con Radarr e Sonarr? Ci sono problemi?"
 - "I limiti e le code di qBittorrent sono ragionevoli per la mia banda?"
 
-L'agente **legge e propone**: non applica nulla. Le modifiche, quando ci saranno, avranno un permesso separato e la tua conferma.
+L'agente legge e propone; applica solo i piani che hai approvato.
 
 ## 4. Cosa fa e cosa non fa
 
