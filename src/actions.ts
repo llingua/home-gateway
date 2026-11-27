@@ -73,7 +73,7 @@ async function readQbtPreferences(ctx: Ctx): Promise<{ base: string; headers: Re
   return { base, headers, prefs };
 }
 
-const qbittorrentPreferences: ActionDef = {
+export const qbittorrentPreferences: ActionDef = {
   name: "qbittorrent_preferences",
   services: ["qbittorrent"],
   description:

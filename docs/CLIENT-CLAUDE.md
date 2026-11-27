@@ -69,6 +69,8 @@ Come funziona: `mcp.belinchebon.com` è un'app Access con *Managed OAuth* (Acces
 - "Cerca adesso le uscite disponibili" → con `searchReleases` Sonarr/Radarr interrogano gli indexer (può richiedere fino a un minuto) e Claude vede quante uscite ci sono e perché vengono scartate (qualità non nel profilo, punteggio dei formati troppo basso, lingua...).
 - Sottotitoli: per ogni film o serie dice il profilo lingua di Bazarr e quanti sottotitoli mancano.
 
+**Limiti di qBittorrent dall'app, con un sì in chat:** "aumenta i download attivi a 8" → Claude ti mostra i valori attuali e quelli nuovi, tu rispondi sì, e la modifica parte subito (`set_qbittorrent_preferences`), verificata. Solo per code, connessioni, banda e torrent lenti; massimo 10 al giorno; per tornare indietro chiedi di rimettere i valori di prima. Funziona solo dall'app (accesso con la tua email), non dal token delle sessioni di codice.
+
 **Configurare gli strumenti** (con approvazione nel browser):
 - qBittorrent: limiti di coda, connessioni e banda; come si contano i torrent lenti.
 - Radarr e Sonarr: profili di ritardo, attivazione e priorità di indexer e client di download, soglie dei profili di qualità e punteggi dei formati personalizzati.
