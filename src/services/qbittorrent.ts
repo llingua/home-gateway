@@ -4,6 +4,7 @@ import type { Ctx } from "../types";
 
 const DOWNLOADING = new Set(["downloading", "forcedDL", "metaDL", "forcedMetaDL", "stalledDL", "queuedDL", "checkingDL", "allocating"]);
 const SEEDING = new Set(["uploading", "forcedUP", "stalledUP", "queuedUP", "checkingUP"]);
+// 4.x: pausedDL/pausedUP; 5.x: stoppedDL/stoppedUP.
 const PAUSED = new Set(["pausedDL", "pausedUP", "stoppedDL", "stoppedUP"]);
 const ERRORED = new Set(["error", "missingFiles"]);
 
@@ -29,20 +30,52 @@ export interface DownloadsSummary {
 
 const round1 = (value: number) => Math.round(value * 10) / 10;
 
-/** qBittorrent usa un login con cookie (SID): si accede a ogni richiesta; il risultato finisce in cache. */
+/**
+ * Cookie di sessione dal login. Fino alla 4.x si chiama `SID`; dalla 5.x può chiamarsi `QBT_SID_<porta>`.
+ * Si accettano solo questi due nomi e si rimanda il cookie con il nome ricevuto.
+ */
+export function sessionCookie(headers: Headers): string | null {
+  const raw = typeof (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie === "function"
+    ? (headers as Headers & { getSetCookie: () => string[] }).getSetCookie()
+    : [headers.get("set-cookie") ?? ""];
+  let found: string | null = null;
+  for (const line of raw) {
+    // Più cookie possono arrivare uniti da ", ": si cerca il nome all'inizio o subito dopo un separatore.
+    const re = /(?:^|[,;]\s*)(SID|QBT_SID_\d{1,5})=([^;,\s]+)/g;
+    for (let match = re.exec(line); match; match = re.exec(line)) {
+      const cookie = `${match[1]}=${match[2]}`;
+      if (match[1] !== "SID") return cookie; // il nome con la porta è quello della 5.x: ha la precedenza
+      found ??= cookie;
+    }
+  }
+  return found;
+}
+
+/**
+ * Login con cookie: si accede a ogni richiesta; il risultato finisce in cache.
+ * Riuscito: 200 con corpo "Ok." (fino alla 5.1) oppure 204 senza corpo (5.2+), sempre con un cookie di sessione.
+ * Rifiutato: 200 "Fails.", 401, 403 (o qualsiasi altra risposta).
+ */
 export async function login(ctx: Ctx, base: string): Promise<string> {
   const username = requireSecret(ctx.env.QBT_USERNAME, "qbittorrent");
   const password = requireSecret(ctx.env.QBT_PASSWORD, "qbittorrent");
 
-  const response = await request(ctx, `${base}/api/v2/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Referer: base },
-    body: new URLSearchParams({ username, password }),
-  });
+  let response: Response;
+  try {
+    response = await request(ctx, `${base}/api/v2/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Referer: base },
+      body: new URLSearchParams({ username, password }),
+    });
+  } catch (error) {
+    if (error instanceof UpstreamError && (error.status === 401 || error.status === 403)) throw new UpstreamError("Login qBittorrent rifiutato", error.status);
+    throw error;
+  }
   const text = (await response.text()).trim();
-  const cookie = /SID=([^;]+)/.exec(response.headers.get("set-cookie") ?? "")?.[1];
-  if (text !== "Ok." || !cookie) throw new UpstreamError("Login qBittorrent rifiutato");
-  return `SID=${cookie}`;
+  const accepted = (response.status === 200 && text === "Ok.") || (response.status === 204 && text === "");
+  const cookie = sessionCookie(response.headers);
+  if (!accepted || !cookie) throw new UpstreamError("Login qBittorrent rifiutato");
+  return cookie;
 }
 
 export async function fetchDownloads(ctx: Ctx): Promise<DownloadsSummary> {
@@ -85,7 +118,7 @@ const PREFERENCE_KEYS = [
   "dl_limit", "up_limit", "alt_dl_limit", "alt_up_limit", "scheduler_enabled",
   "max_ratio_enabled", "max_ratio", "max_ratio_act", "max_seeding_time_enabled", "max_seeding_time",
   "dht", "pex", "lsd", "encryption", "anonymous_mode", "upnp", "listen_port",
-  "add_trackers_enabled", "start_paused_enabled", "create_subfolder_enabled",
+  "add_trackers_enabled", "start_paused_enabled", "add_stopped_enabled", "create_subfolder_enabled",
 ] as const;
 
 export interface QbtConfig {

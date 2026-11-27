@@ -57,6 +57,13 @@ export class FakeNet {
     return this;
   }
 
+  /** Come `on`, ma vince sulle regole già registrate (per sostituire una risposta di `healthyNet`). */
+  first(pattern: RegExp | string, handler: Handler): this {
+    this.on(pattern, handler);
+    this.handlers.unshift(this.handlers.pop()!);
+    return this;
+  }
+
   json(pattern: RegExp | string, body: unknown, status = 200): this {
     return this.on(pattern, () => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
   }
