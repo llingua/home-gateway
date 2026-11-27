@@ -161,6 +161,17 @@ const searchTool: Tool = {
 };
 
 /** Diagnosi in sola lettura: gli errori dei servizi diventano un messaggio breve, mai un crash. */
+/** Solo un origin https valido; altrimenti si ricade sull'indirizzo della richiesta. */
+function approvalOrigin(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
 async function diagnoseCall(run: () => Promise<unknown>): Promise<{ text: string; isError?: boolean }> {
   try {
     return { text: JSON.stringify(await run()) };
@@ -421,7 +432,7 @@ export async function handleMcp(request: Request, client: Client, deps: McpDeps)
     return rpcHttp(fail(null, -32600, "Richiesta non valida"), 400);
   }
 
-  const withOrigin: McpDeps = { ...deps, origin: new URL(request.url).origin };
+  const withOrigin: McpDeps = { ...deps, origin: approvalOrigin(deps.env.APPROVAL_ORIGIN) ?? new URL(request.url).origin };
   const responses = (await Promise.all(messages.map((message) => handleMessage(message, client, withOrigin)))).filter(
     (response): response is RpcResponse => response !== null,
   );

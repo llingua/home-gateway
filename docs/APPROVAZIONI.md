@@ -20,7 +20,7 @@ Un agente (come Claude) può **proporre** una modifica; non la applica finché *
 ## Messa online (passi manuali)
 
 1. **KV**: creare un namespace e collegarlo come `STATE` in `wrangler.jsonc` (`kv_namespaces`).
-2. **Access**: nuova app self-hosted su `gateway.belinchebon.com/approve` con una policy *Allow* per le email degli approvatori (solo persone, niente Service Auth). Copiare l'AUD in `ACCESS_AUD_APPROVAL` (variabile non segreta). Il percorso `/approve` deve restare escluso dall'app generale, o coperto da una policy che includa le persone.
+2. **Access**: nuova app self-hosted su `gateway.belinchebon.com/approve` con una policy *Allow* per le email degli approvatori (solo persone, niente Service Auth). Copiare l'AUD in `ACCESS_AUD_APPROVAL` (variabile non segreta). Il percorso `/approve` deve restare escluso dall'app generale, o coperto da una policy che includa le persone. La pagina esiste solo su questo indirizzo: la variabile `APPROVAL_ORIGIN` (`https://gateway.belinchebon.com`) fa puntare lì i link di approvazione anche quando l'agente entra da `mcp.belinchebon.com`.
 3. **Segreti del Worker**: `APPROVAL_SECRET` (stringa casuale lunga) e `APPROVERS` (email separate da virgola).
 4. **Permesso**: aggiungere `config:write` al cliente `agente` in `CLIENTS`.
 

@@ -39,6 +39,8 @@
     // App Access "home-gateway mcp (OAuth)" (mcp.belinchebon.com, Managed OAuth, solo persone). Non è un segreto.
     "ACCESS_AUD_OAUTH": "8fbb628485d11b2251eade0bb5e0998d082718f2284e3d223a1a6baf1044cc06",
 
+    // La pagina /approve ha la sua app Access solo su questo indirizzo: anche chi entra da mcp.belinchebon.com riceve link verso di qui.
+    "APPROVAL_ORIGIN": "https://gateway.belinchebon.com",
     "ACCESS_AUD_APPROVAL": "629ca5d160ec93c836591912072f031b640453f3120e390ea51d0d4566fdbdc5",
 
     // Clienti ammessi: Client ID del service token (non segreto) -> nome e permessi.

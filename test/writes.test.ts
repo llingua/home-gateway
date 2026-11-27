@@ -127,6 +127,22 @@ describe("strumenti disponibili", () => {
   });
 });
 
+describe("link di approvazione", () => {
+  it("con APPROVAL_ORIGIN punta sempre lì, anche se l'agente è entrato da un altro indirizzo (es. mcp.belinchebon.com)", async () => {
+    const r = await proposeQbt({ max_active_torrents: 10 }, WRITER, { env: writeEnv(kv, { APPROVAL_ORIGIN: "https://approva.test/qualcosa?x=1" }) });
+    expect(r.data.approvalUrl).toBe(`https://approva.test/approve/${r.data.planId}`);
+    const again = await tool("get_plan", { planId: r.data.planId }, WRITER, { env: writeEnv(kv, { APPROVAL_ORIGIN: "https://approva.test" }) });
+    expect(again.data.approvalUrl).toBe(`https://approva.test/approve/${r.data.planId}`);
+  });
+
+  it("valore non valido o non https: si usa l'indirizzo della richiesta", async () => {
+    for (const bad of ["http://approva.test", "javascript:alert(1)", "non un url"]) {
+      const r = await proposeQbt({ max_active_torrents: 10 }, WRITER, { env: writeEnv(kv, { APPROVAL_ORIGIN: bad }) });
+      expect(r.data.approvalUrl).toBe(`https://gateway.test/approve/${r.data.planId}`);
+    }
+  });
+});
+
 describe("proposta", () => {
   it("calcola cosa cambierebbe e NON modifica nulla", async () => {
     const r = await proposeQbt({ max_active_torrents: 10 });

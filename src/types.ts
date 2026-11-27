@@ -9,6 +9,7 @@ export interface Env {
   // Scritture (livello 3): piani da approvare. Senza questi valori le scritture sono disattivate.
   STATE?: KvLike; // KV Namespace con piani e registro
   ACCESS_AUD_APPROVAL?: string; // AUD dell'app Access della pagina di approvazione (accesso personale con email)
+  APPROVAL_ORIGIN?: string; // indirizzo fisso della pagina /approve (es. https://gateway.belinchebon.com): i link di approvazione puntano sempre lì, da qualsiasi ingresso arrivi l'agente
   APPROVERS?: string; // email di chi può approvare, separate da virgola (segreto)
   APPROVAL_SECRET?: string; // segreto per i token anti-CSRF della pagina di approvazione (segreto) // { "<client_id | email>": { "name": "...", "scopes": ["media:read"] } }
 
