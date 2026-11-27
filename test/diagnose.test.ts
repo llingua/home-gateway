@@ -36,6 +36,7 @@ function net(options: { bazarrDown?: boolean; noReleases?: boolean } = {}) {
     { title: "Dune.Part.Two.2024.2160p.ENG", indexer: "TPB (Prowlarr)", size: 20 * 1024 ** 3, seeders: 3, quality: { quality: { name: "WEBDL-2160p" } }, languages: [{ name: "English" }], approved: false, rejections: [{ reason: "Custom Format score 0 below minimum 100000", type: "permanent" }], downloadUrl: SECRET_URL },
   ]));
   n.json("https://radarr.test/api/v3/wanted/missing", { totalRecords: 3, records: [{ id: 2, title: "Dune - Parte due", year: 2024, status: "released", minimumAvailability: "released", isAvailable: true }, { id: 3, title: "Film futuro", year: 2027, status: "announced", minimumAvailability: "released", isAvailable: false }] });
+  n.on(/^https:\/\/radarr\.test\/api\/v3\/blocklist/, () => json({ records: [{ id: 5, movieId: 2, sourceTitle: "Dune.Part.Two.2024.ITA.2160p", date: day(-4), message: "Manually marked as failed", torrentInfoHash: "hash-segreto", downloadUrl: SECRET_URL }, { id: 6, movieId: 1, sourceTitle: "Dune.2021.ITA" }] }));
   // --- Sonarr
   n.json("https://sonarr.test/api/v3/qualityprofile", [{ id: 10, name: "1080p Quality" }]);
   n.json(/^https:\/\/sonarr\.test\/api\/v3\/series$/ as any, [
@@ -122,6 +123,23 @@ describe("diagnose_movie", () => {
     expect(r.data.subtitles).toEqual({ languageProfile: "Italiano", missingSubtitles: ["Italian"] });
     noLeaks(r.text);
     expect(n.calls.every((c) => c.method === "GET")).toBe(true);
+  });
+
+  it("mostra le voci in blocklist del film (con id per toglierle) e lo segnala nei suggerimenti", async () => {
+    const r = await tool(net(), "diagnose_movie", { id: 2 });
+    expect(r.data.blocklist.total).toBe(1);
+    expect(r.data.blocklist.entries[0]).toMatchObject({ id: 5, release: "Dune.Part.Two.2024.ITA.2160p", message: "Manually marked as failed" });
+    expect(r.data.hints.join(" ")).toContain("in blocklist");
+    noLeaks(r.text);
+  });
+
+  it("get_blocklist: elenco filtrato, sola lettura, non visibile alla homepage", async () => {
+    const n = net();
+    const r = await tool(n, "get_blocklist", { service: "radarr", query: "dune part" });
+    expect(r.data.entries.map((e: any) => e.id)).toEqual([5]);
+    noLeaks(r.text);
+    expect(n.calls.every((c) => c.method === "GET")).toBe(true);
+    expect((await tool(net(), "get_blocklist", { service: "radarr" }, "homepage-client-id")).isError).toBe(true);
   });
 
   it("senza searchReleases non interroga gli indexer", async () => {

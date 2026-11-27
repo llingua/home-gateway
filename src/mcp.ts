@@ -5,6 +5,7 @@ import { WriteError } from "./errors";
 import { loadSection, type LoadDeps } from "./load";
 import { MAX_MEDIA_REQUESTS_PER_DAY, requestMedia, searchMedia } from "./media";
 import { diagnoseMovie, diagnoseSeries, listMissing } from "./diagnose";
+import { listBlocklist } from "./arr-blocklist";
 import { NotConfigured, UpstreamError } from "./errors";
 import { SECTIONS, findSection, sectionGroup, type SectionDef, type SectionGroup } from "./sections";
 import { Store } from "./store";
@@ -213,6 +214,20 @@ const diagnoseTools: Tool[] = [
     scope: "config:read",
     inputSchema: { type: "object", properties: { ...target, searchReleases: { type: "boolean" }, season: { type: "integer", minimum: 0, maximum: 500 } }, additionalProperties: false },
     run: (args, deps) => diagnoseCall(() => diagnoseSeries({ env: deps.env, fetch: deps.fetch, now: deps.now }, args)),
+  },
+  {
+    name: "get_blocklist",
+    description:
+      "Blocklist di Radarr o Sonarr: le uscite che il servizio non riprenderà più (di solito dopo un download segnato come fallito), con id, data, titolo, uscita, qualità, lingue, indexer e motivo. " +
+      "Filtri facoltativi: query (titolo o nome dell'uscita) o mediaId (id del film/serie). Gli id servono per propose_arr_blocklist_remove. Sola lettura.",
+    scope: "config:read",
+    inputSchema: {
+      type: "object",
+      properties: { service: { type: "string", enum: ["radarr", "sonarr"] }, query: { type: "string", minLength: 2, maxLength: 100 }, mediaId: { type: "integer", minimum: 1 }, limit: { type: "integer", minimum: 1, maximum: 200 } },
+      required: ["service"],
+      additionalProperties: false,
+    },
+    run: (args, deps) => diagnoseCall(() => listBlocklist({ env: deps.env, fetch: deps.fetch }, args)),
   },
 ];
 

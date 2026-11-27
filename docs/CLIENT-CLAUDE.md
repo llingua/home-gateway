@@ -73,6 +73,7 @@ Come funziona: `mcp.belinchebon.com` è un'app Access con *Managed OAuth* (Acces
 
 **Configurare gli strumenti** (con approvazione nel browser):
 - qBittorrent: limiti di coda, connessioni e banda; come si contano i torrent lenti.
+- Radarr e Sonarr, blocklist: vedere cosa è bloccato ("cosa c'è in blocklist per *Eddie the Eagle*?"), togliere voci perché tornino scaricabili, mettere in blocklist un download in coda che non va bene (lo toglie dalla coda e cerca un'alternativa).
 - Radarr e Sonarr: profili di ritardo, attivazione e priorità di indexer e client di download, soglie dei profili di qualità e punteggi dei formati personalizzati.
 - Prowlarr: attivare o disattivare un indexer; rapporto e tempi di semina richiesti da un tracker.
 - Plex: trascodifica (limite di sessioni, buffer, accelerazione hardware), aggiornamento e manutenzione notturna delle librerie, limiti di banda.

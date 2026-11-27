@@ -102,6 +102,7 @@ La panoramica `/v1/media/overview` non include mai le sezioni di configurazione 
 - **Letture:** una per sezione (`get_streams`, `get_queue`, `get_config_radarr`…), più `get_overview` e `get_config_overview`.
 - **Cercare e aggiungere:** `search_media` (`media:read`) e `request_media` (`media:request`).
 - **Diagnosi:** `list_missing`, `diagnose_movie`, `diagnose_series` (`config:read`, sola lettura; con `searchReleases: true` Radarr/Sonarr interrogano gli indexer, fino a 60 s).
+- **Blocklist di Radarr/Sonarr:** `get_blocklist` (`config:read`); `propose_arr_blocklist_remove` e `propose_arr_blocklist_add` (con approvazione).
 - **Modifiche:** `propose_<azione>`, `propose_undo`, `apply_plan`, `get_plan`, `get_audit_log` (compaiono solo se esiste l'archivio `STATE` e il cliente ha i permessi).
 
 Come collegarlo: `docs/CLIENT-CLAUDE.md`.
